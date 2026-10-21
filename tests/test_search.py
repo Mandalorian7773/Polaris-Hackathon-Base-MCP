@@ -281,14 +281,18 @@ class FilterSemanticsTests(unittest.TestCase):
             self.assertGreaterEqual(row['rating']['count'], 2)
 
     def test_explicit_filter_beats_conflicting_query_wording(self):
-        """"white" in the query must never widen an explicit Black colour filter."""
-        unfiltered = set(self.ids(query='white sneakers', limit=100))
+        """"white" in the query must never widen an explicit colour filter.
+
+        The fixture only ever pairs Dress with White or Light Pink, so Light Pink is
+        the conflicting-but-satisfiable filter here.
+        """
+        unfiltered = set(self.ids(query='white dress', limit=100))
         self.assertTrue(unfiltered)
-        ids = self.ids(query='white sneakers', filters={'color': 'Black'}, limit=100)
+        ids = self.ids(query='white dress', filters={'color': 'Light Pink'}, limit=100)
         self.assertTrue(ids)
         self.assertLess(set(ids), unfiltered)
         for pid in ids:
-            self.assertEqual(self.product(pid)['color'], 'Black')
+            self.assertEqual(self.product(pid)['color'], 'Light Pink')
 
     def test_explicit_filter_wins_even_when_it_empties_the_page(self):
         for filters in ({'color': 'White'}, {'product_type': 'Trousers'},

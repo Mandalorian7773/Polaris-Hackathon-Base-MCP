@@ -1,0 +1,769 @@
+[
+  {
+    "label": "baseline",
+    "params": {
+      "k1": 1.2,
+      "weights": [
+        9.0,
+        3.0,
+        3.5,
+        2.0,
+        1.0
+      ],
+      "b": [
+        0.0,
+        0.0,
+        0.2,
+        0.5,
+        0.75
+      ],
+      "synonym_boost": 7.0,
+      "intent_boost": 2.5,
+      "typo_penalty": 0.6,
+      "typo_min_df": 8,
+      "desc_df_share": 0.12,
+      "coverage_exponent": 2.0,
+      "coverage_slack": 1,
+      "score_floor": 0.08,
+      "no_anchor_coverage": 0.75,
+      "min_coverage": 0.34,
+      "max_results": 11000
+    },
+    "report": {
+      "dev": {
+        "areas": {
+          "ranking": 0.908,
+          "unusual": 1.0,
+          "irrelevant": 0.75,
+          "mixed": 0.7537,
+          "complement": 0.2477
+        },
+        "points": 54.148,
+        "ndcg": 0.83,
+        "abstention": 0.75,
+        "coverage": 0.5625,
+        "empty_valid_cases": [
+          "rec-05",
+          "rec-10"
+        ]
+      },
+      "heldout": {
+        "areas": {
+          "ranking": 1.0,
+          "unusual": 0.5,
+          "irrelevant": 1.0,
+          "mixed": 0.8184,
+          "complement": 0.1883
+        },
+        "points": 55.409,
+        "ndcg": 0.7812,
+        "abstention": 1.0,
+        "coverage": 0.7083,
+        "empty_valid_cases": [
+          "rec-06",
+          "vague-08",
+          "vague-10"
+        ]
+      },
+      "latency_p95_ms": 23.7
+    }
+  },
+  {
+    "label": "no_anchor_coverage=0.6",
+    "report": {
+      "dev": {
+        "areas": {
+          "ranking": 0.908,
+          "unusual": 1.0,
+          "irrelevant": 0.625,
+          "mixed": 0.7537,
+          "complement": 0.2477
+        },
+        "points": 53.21,
+        "ndcg": 0.83,
+        "abstention": 0.625,
+        "coverage": 0.5625,
+        "empty_valid_cases": [
+          "rec-05",
+          "rec-10"
+        ]
+      },
+      "heldout": {
+        "areas": {
+          "ranking": 1.0,
+          "unusual": 0.5,
+          "irrelevant": 1.0,
+          "mixed": 0.8184,
+          "complement": 0.1883
+        },
+        "points": 55.409,
+        "ndcg": 0.7812,
+        "abstention": 1.0,
+        "coverage": 0.7083,
+        "empty_valid_cases": [
+          "rec-06",
+          "vague-08",
+          "vague-10"
+        ]
+      },
+      "latency_p95_ms": 23.9
+    }
+  },
+  {
+    "label": "no_anchor_coverage=0.75",
+    "report": {
+      "dev": {
+        "areas": {
+          "ranking": 0.908,
+          "unusual": 1.0,
+          "irrelevant": 0.75,
+          "mixed": 0.7537,
+          "complement": 0.2477
+        },
+        "points": 54.148,
+        "ndcg": 0.83,
+        "abstention": 0.75,
+        "coverage": 0.5625,
+        "empty_valid_cases": [
+          "rec-05",
+          "rec-10"
+        ]
+      },
+      "heldout": {
+        "areas": {
+          "ranking": 1.0,
+          "unusual": 0.5,
+          "irrelevant": 1.0,
+          "mixed": 0.8184,
+          "complement": 0.1883
+        },
+        "points": 55.409,
+        "ndcg": 0.7812,
+        "abstention": 1.0,
+        "coverage": 0.7083,
+        "empty_valid_cases": [
+          "rec-06",
+          "vague-08",
+          "vague-10"
+        ]
+      },
+      "latency_p95_ms": 23.6
+    }
+  },
+  {
+    "label": "no_anchor_coverage=0.9",
+    "report": {
+      "dev": {
+        "areas": {
+          "ranking": 0.908,
+          "unusual": 1.0,
+          "irrelevant": 0.875,
+          "mixed": 0.7537,
+          "complement": 0.2477
+        },
+        "points": 55.085,
+        "ndcg": 0.83,
+        "abstention": 0.875,
+        "coverage": 0.5625,
+        "empty_valid_cases": [
+          "rec-05",
+          "rec-10"
+        ]
+      },
+      "heldout": {
+        "areas": {
+          "ranking": 1.0,
+          "unusual": 0.5,
+          "irrelevant": 1.0,
+          "mixed": 0.8184,
+          "complement": 0.1883
+        },
+        "points": 55.409,
+        "ndcg": 0.7812,
+        "abstention": 1.0,
+        "coverage": 0.7083,
+        "empty_valid_cases": [
+          "rec-06",
+          "vague-08",
+          "vague-10"
+        ]
+      },
+      "latency_p95_ms": 22.6
+    }
+  },
+  {
+    "label": "no_anchor_coverage=1.0",
+    "report": {
+      "dev": {
+        "areas": {
+          "ranking": 0.908,
+          "unusual": 1.0,
+          "irrelevant": 0.875,
+          "mixed": 0.7537,
+          "complement": 0.2477
+        },
+        "points": 55.085,
+        "ndcg": 0.83,
+        "abstention": 0.875,
+        "coverage": 0.5625,
+        "empty_valid_cases": [
+          "rec-05",
+          "rec-10"
+        ]
+      },
+      "heldout": {
+        "areas": {
+          "ranking": 1.0,
+          "unusual": 0.5,
+          "irrelevant": 1.0,
+          "mixed": 0.8184,
+          "complement": 0.1883
+        },
+        "points": 55.409,
+        "ndcg": 0.7812,
+        "abstention": 1.0,
+        "coverage": 0.7083,
+        "empty_valid_cases": [
+          "rec-06",
+          "vague-08",
+          "vague-10"
+        ]
+      },
+      "latency_p95_ms": 23.5
+    }
+  },
+  {
+    "label": "coverage_exponent=1.0",
+    "report": {
+      "dev": {
+        "areas": {
+          "ranking": 0.9453,
+          "unusual": 1.0,
+          "irrelevant": 0.75,
+          "mixed": 0.7537,
+          "complement": 0.2477
+        },
+        "points": 55.267,
+        "ndcg": 0.8472,
+        "abstention": 0.75,
+        "coverage": 0.5625,
+        "empty_valid_cases": [
+          "rec-05",
+          "rec-10"
+        ]
+      },
+      "heldout": {
+        "areas": {
+          "ranking": 1.0,
+          "unusual": 0.5,
+          "irrelevant": 1.0,
+          "mixed": 0.8187,
+          "complement": 0.1883
+        },
+        "points": 55.413,
+        "ndcg": 0.7814,
+        "abstention": 1.0,
+        "coverage": 0.7083,
+        "empty_valid_cases": [
+          "rec-06",
+          "vague-08",
+          "vague-10"
+        ]
+      },
+      "latency_p95_ms": 23.8
+    }
+  },
+  {
+    "label": "coverage_exponent=1.5",
+    "report": {
+      "dev": {
+        "areas": {
+          "ranking": 0.9453,
+          "unusual": 1.0,
+          "irrelevant": 0.75,
+          "mixed": 0.7537,
+          "complement": 0.2477
+        },
+        "points": 55.267,
+        "ndcg": 0.8472,
+        "abstention": 0.75,
+        "coverage": 0.5625,
+        "empty_valid_cases": [
+          "rec-05",
+          "rec-10"
+        ]
+      },
+      "heldout": {
+        "areas": {
+          "ranking": 1.0,
+          "unusual": 0.5,
+          "irrelevant": 1.0,
+          "mixed": 0.7559,
+          "complement": 0.1883
+        },
+        "points": 54.471,
+        "ndcg": 0.7812,
+        "abstention": 1.0,
+        "coverage": 0.5833,
+        "empty_valid_cases": [
+          "rec-06",
+          "vague-08",
+          "vague-10"
+        ]
+      },
+      "latency_p95_ms": 24.2
+    }
+  },
+  {
+    "label": "coverage_exponent=2.0",
+    "report": {
+      "dev": {
+        "areas": {
+          "ranking": 0.908,
+          "unusual": 1.0,
+          "irrelevant": 0.75,
+          "mixed": 0.7537,
+          "complement": 0.2477
+        },
+        "points": 54.148,
+        "ndcg": 0.83,
+        "abstention": 0.75,
+        "coverage": 0.5625,
+        "empty_valid_cases": [
+          "rec-05",
+          "rec-10"
+        ]
+      },
+      "heldout": {
+        "areas": {
+          "ranking": 1.0,
+          "unusual": 0.5,
+          "irrelevant": 1.0,
+          "mixed": 0.8184,
+          "complement": 0.1883
+        },
+        "points": 55.409,
+        "ndcg": 0.7812,
+        "abstention": 1.0,
+        "coverage": 0.7083,
+        "empty_valid_cases": [
+          "rec-06",
+          "vague-08",
+          "vague-10"
+        ]
+      },
+      "latency_p95_ms": 25.2
+    }
+  },
+  {
+    "label": "coverage_exponent=3.0",
+    "report": {
+      "dev": {
+        "areas": {
+          "ranking": 0.9048,
+          "unusual": 1.0,
+          "irrelevant": 0.75,
+          "mixed": 0.7537,
+          "complement": 0.2477
+        },
+        "points": 54.052,
+        "ndcg": 0.8285,
+        "abstention": 0.75,
+        "coverage": 0.5625,
+        "empty_valid_cases": [
+          "rec-05",
+          "rec-10"
+        ]
+      },
+      "heldout": {
+        "areas": {
+          "ranking": 1.0,
+          "unusual": 0.5,
+          "irrelevant": 1.0,
+          "mixed": 0.8184,
+          "complement": 0.1883
+        },
+        "points": 55.409,
+        "ndcg": 0.7812,
+        "abstention": 1.0,
+        "coverage": 0.7083,
+        "empty_valid_cases": [
+          "rec-06",
+          "vague-08",
+          "vague-10"
+        ]
+      },
+      "latency_p95_ms": 20.4
+    }
+  },
+  {
+    "label": "synonym_boost=7.0",
+    "report": {
+      "dev": {
+        "areas": {
+          "ranking": 0.908,
+          "unusual": 1.0,
+          "irrelevant": 0.75,
+          "mixed": 0.7537,
+          "complement": 0.2477
+        },
+        "points": 54.148,
+        "ndcg": 0.83,
+        "abstention": 0.75,
+        "coverage": 0.5625,
+        "empty_valid_cases": [
+          "rec-05",
+          "rec-10"
+        ]
+      },
+      "heldout": {
+        "areas": {
+          "ranking": 1.0,
+          "unusual": 0.5,
+          "irrelevant": 1.0,
+          "mixed": 0.8184,
+          "complement": 0.1883
+        },
+        "points": 55.409,
+        "ndcg": 0.7812,
+        "abstention": 1.0,
+        "coverage": 0.7083,
+        "empty_valid_cases": [
+          "rec-06",
+          "vague-08",
+          "vague-10"
+        ]
+      },
+      "latency_p95_ms": 30.9
+    }
+  },
+  {
+    "label": "synonym_boost=10.0",
+    "report": {
+      "dev": {
+        "areas": {
+          "ranking": 0.9079,
+          "unusual": 1.0,
+          "irrelevant": 0.75,
+          "mixed": 0.7537,
+          "complement": 0.2513
+        },
+        "points": 54.181,
+        "ndcg": 0.8313,
+        "abstention": 0.75,
+        "coverage": 0.5625,
+        "empty_valid_cases": [
+          "rec-05",
+          "rec-10"
+        ]
+      },
+      "heldout": {
+        "areas": {
+          "ranking": 1.0,
+          "unusual": 0.5,
+          "irrelevant": 1.0,
+          "mixed": 0.8184,
+          "complement": 0.1883
+        },
+        "points": 55.409,
+        "ndcg": 0.7812,
+        "abstention": 1.0,
+        "coverage": 0.7083,
+        "empty_valid_cases": [
+          "rec-06",
+          "vague-08",
+          "vague-10"
+        ]
+      },
+      "latency_p95_ms": 29.9
+    }
+  },
+  {
+    "label": "synonym_boost=14.0",
+    "report": {
+      "dev": {
+        "areas": {
+          "ranking": 0.9048,
+          "unusual": 1.0,
+          "irrelevant": 0.75,
+          "mixed": 0.7537,
+          "complement": 0.2513
+        },
+        "points": 54.088,
+        "ndcg": 0.8299,
+        "abstention": 0.75,
+        "coverage": 0.5625,
+        "empty_valid_cases": [
+          "rec-05",
+          "rec-10"
+        ]
+      },
+      "heldout": {
+        "areas": {
+          "ranking": 1.0,
+          "unusual": 0.5,
+          "irrelevant": 1.0,
+          "mixed": 0.8184,
+          "complement": 0.1883
+        },
+        "points": 55.409,
+        "ndcg": 0.7812,
+        "abstention": 1.0,
+        "coverage": 0.7083,
+        "empty_valid_cases": [
+          "rec-06",
+          "vague-08",
+          "vague-10"
+        ]
+      },
+      "latency_p95_ms": 23.4
+    }
+  },
+  {
+    "label": "coverage_slack=0",
+    "report": {
+      "dev": {
+        "areas": {
+          "ranking": 0.9048,
+          "unusual": 1.0,
+          "irrelevant": 0.75,
+          "mixed": 0.5957,
+          "complement": 0.2477
+        },
+        "points": 51.681,
+        "ndcg": 0.7894,
+        "abstention": 0.75,
+        "coverage": 0.4375,
+        "empty_valid_cases": [
+          "mix-11",
+          "rec-05",
+          "rec-10"
+        ]
+      },
+      "heldout": {
+        "areas": {
+          "ranking": 1.0,
+          "unusual": 0.5,
+          "irrelevant": 1.0,
+          "mixed": 0.6757,
+          "complement": 0.0583
+        },
+        "points": 51.968,
+        "ndcg": 0.7064,
+        "abstention": 1.0,
+        "coverage": 0.5833,
+        "empty_valid_cases": [
+          "rec-06",
+          "vague-08",
+          "vague-10"
+        ]
+      },
+      "latency_p95_ms": 17.5
+    }
+  },
+  {
+    "label": "coverage_slack=1",
+    "report": {
+      "dev": {
+        "areas": {
+          "ranking": 0.908,
+          "unusual": 1.0,
+          "irrelevant": 0.75,
+          "mixed": 0.7537,
+          "complement": 0.2477
+        },
+        "points": 54.148,
+        "ndcg": 0.83,
+        "abstention": 0.75,
+        "coverage": 0.5625,
+        "empty_valid_cases": [
+          "rec-05",
+          "rec-10"
+        ]
+      },
+      "heldout": {
+        "areas": {
+          "ranking": 1.0,
+          "unusual": 0.5,
+          "irrelevant": 1.0,
+          "mixed": 0.8184,
+          "complement": 0.1883
+        },
+        "points": 55.409,
+        "ndcg": 0.7812,
+        "abstention": 1.0,
+        "coverage": 0.7083,
+        "empty_valid_cases": [
+          "rec-06",
+          "vague-08",
+          "vague-10"
+        ]
+      },
+      "latency_p95_ms": 23.5
+    }
+  },
+  {
+    "label": "coverage_slack=2",
+    "report": {
+      "dev": {
+        "areas": {
+          "ranking": 0.908,
+          "unusual": 1.0,
+          "irrelevant": 0.75,
+          "mixed": 0.7537,
+          "complement": 0.2477
+        },
+        "points": 54.148,
+        "ndcg": 0.83,
+        "abstention": 0.75,
+        "coverage": 0.5625,
+        "empty_valid_cases": [
+          "rec-05",
+          "rec-10"
+        ]
+      },
+      "heldout": {
+        "areas": {
+          "ranking": 1.0,
+          "unusual": 0.5,
+          "irrelevant": 1.0,
+          "mixed": 0.8184,
+          "complement": 0.1883
+        },
+        "points": 55.409,
+        "ndcg": 0.7812,
+        "abstention": 1.0,
+        "coverage": 0.7083,
+        "empty_valid_cases": [
+          "rec-06",
+          "vague-08",
+          "vague-10"
+        ]
+      },
+      "latency_p95_ms": 24.0
+    }
+  },
+  {
+    "label": "score_floor=0.05",
+    "report": {
+      "dev": {
+        "areas": {
+          "ranking": 0.908,
+          "unusual": 1.0,
+          "irrelevant": 0.75,
+          "mixed": 0.7537,
+          "complement": 0.2477
+        },
+        "points": 54.148,
+        "ndcg": 0.83,
+        "abstention": 0.75,
+        "coverage": 0.5625,
+        "empty_valid_cases": [
+          "rec-05",
+          "rec-10"
+        ]
+      },
+      "heldout": {
+        "areas": {
+          "ranking": 1.0,
+          "unusual": 0.5,
+          "irrelevant": 1.0,
+          "mixed": 0.8184,
+          "complement": 0.1883
+        },
+        "points": 55.409,
+        "ndcg": 0.7812,
+        "abstention": 1.0,
+        "coverage": 0.7083,
+        "empty_valid_cases": [
+          "rec-06",
+          "vague-08",
+          "vague-10"
+        ]
+      },
+      "latency_p95_ms": 24.1
+    }
+  },
+  {
+    "label": "score_floor=0.08",
+    "report": {
+      "dev": {
+        "areas": {
+          "ranking": 0.908,
+          "unusual": 1.0,
+          "irrelevant": 0.75,
+          "mixed": 0.7537,
+          "complement": 0.2477
+        },
+        "points": 54.148,
+        "ndcg": 0.83,
+        "abstention": 0.75,
+        "coverage": 0.5625,
+        "empty_valid_cases": [
+          "rec-05",
+          "rec-10"
+        ]
+      },
+      "heldout": {
+        "areas": {
+          "ranking": 1.0,
+          "unusual": 0.5,
+          "irrelevant": 1.0,
+          "mixed": 0.8184,
+          "complement": 0.1883
+        },
+        "points": 55.409,
+        "ndcg": 0.7812,
+        "abstention": 1.0,
+        "coverage": 0.7083,
+        "empty_valid_cases": [
+          "rec-06",
+          "vague-08",
+          "vague-10"
+        ]
+      },
+      "latency_p95_ms": 22.8
+    }
+  },
+  {
+    "label": "score_floor=0.15",
+    "report": {
+      "dev": {
+        "areas": {
+          "ranking": 0.908,
+          "unusual": 1.0,
+          "irrelevant": 0.75,
+          "mixed": 0.7537,
+          "complement": 0.2477
+        },
+        "points": 54.148,
+        "ndcg": 0.83,
+        "abstention": 0.75,
+        "coverage": 0.5625,
+        "empty_valid_cases": [
+          "rec-05",
+          "rec-10"
+        ]
+      },
+      "heldout": {
+        "areas": {
+          "ranking": 1.0,
+          "unusual": 0.5,
+          "irrelevant": 1.0,
+          "mixed": 0.8184,
+          "complement": 0.1883
+        },
+        "points": 55.409,
+        "ndcg": 0.7812,
+        "abstention": 1.0,
+        "coverage": 0.7083,
+        "empty_valid_cases": [
+          "rec-06",
+          "vague-08",
+          "vague-10"
+        ]
+      },
+      "latency_p95_ms": 20.2
+    }
+  }
+]

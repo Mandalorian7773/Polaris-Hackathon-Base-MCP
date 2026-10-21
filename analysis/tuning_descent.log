@@ -1,0 +1,47 @@
+loading catalog from /home/prvsharya/projects/polaris/data/products.json ...
+index built in 5.5s; 70 semantic cases (47 dev)
+baseline                           dev  54.148  held  55.409   ndcg 0.830/0.781  abst 0.75/1.00  cov 0.56/0.71  p95 22ms
+
+=== coordinate descent round 1 ===
+  -> no_anchor_coverage improved   dev  55.085  held  55.409   ndcg 0.830/0.781  abst 0.88/1.00  cov 0.56/0.71  p95 24ms
+  -> min_coverage improved         dev  55.654  held  55.409   ndcg 0.850/0.781  abst 0.88/1.00  cov 0.56/0.71  p95 24ms
+  -> coverage_exponent improved    dev  56.773  held  55.413   ndcg 0.868/0.781  abst 0.88/1.00  cov 0.56/0.71  p95 24ms
+  -> synonym_boost improved        dev  57.151  held  54.891   ndcg 0.881/0.794  abst 0.88/1.00  cov 0.56/0.58  p95 24ms
+  -> typo_min_df improved          dev  57.282  held  54.891   ndcg 0.898/0.794  abst 0.75/1.00  cov 0.56/0.58  p95 24ms
+  -> desc_df_share improved        dev  57.341  held  55.007   ndcg 0.899/0.798  abst 0.75/1.00  cov 0.56/0.58  p95 26ms
+
+=== coordinate descent round 2 ===
+  -> min_coverage improved         dev  57.565  held  55.007   ndcg 0.873/0.798  abst 0.88/1.00  cov 0.56/0.58  p95 27ms
+
+=== final ===
+tuned                              dev  57.565  held  55.007   ndcg 0.873/0.798  abst 0.88/1.00  cov 0.56/0.58  p95 26ms
+{
+  "k1": 1.2,
+  "weights": [
+    9.0,
+    3.0,
+    3.5,
+    2.0,
+    1.0
+  ],
+  "b": [
+    0.0,
+    0.0,
+    0.2,
+    0.5,
+    0.75
+  ],
+  "synonym_boost": 14.0,
+  "intent_boost": 2.5,
+  "typo_penalty": 0.6,
+  "typo_min_df": 30,
+  "desc_df_share": 1.0,
+  "coverage_exponent": 1.0,
+  "coverage_slack": 1,
+  "score_floor": 0.08,
+  "no_anchor_coverage": 0.9,
+  "min_coverage": 0.34,
+  "max_results": 11000
+}
+
+tuning log -> /home/prvsharya/projects/polaris/analysis/tuning.json

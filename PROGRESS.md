@@ -370,3 +370,163 @@ peak 810 MB. Per-case round trip p50 46.9 ms, p95 54.1 ms.
 .venv/bin/python scripts/evaluate.py --manage
 .venv/bin/python scripts/label.py --manage --skip-labelled   # the manual job
 ```
+
+---
+
+## Phase 4 — Lexical retrieval: BM25F, expansion, abstention (2026-10-21)
+
+Goal: replace strict lexical AND matching with field-aware BM25F plus
+catalog-grounded query expansion, and calibrate abstention so raising recall does not
+start answering nonsense.
+
+Local weighted estimate: **52.26 → 80.67 / 100**. Dev **81.20**, held out **80.41** —
+the gain generalises.
+
+### Added
+
+| Path | Purpose |
+| --- | --- |
+| `retrieval.py` | BM25F index, query planner, spelling correction, scorer, abstention |
+| `data/lexicon.json` | **Reviewable** shopper-language → catalog-value mapping |
+| `scripts/check_lexicon.py` | Fails if any lexicon target names no catalog value |
+| `scripts/tune.py` | Dev-only parameter sweep and coordinate descent, held out reported |
+| `scripts/spike_fts5.py` | Throwaway SQLite FTS5 comparison (evidence, not a path) |
+| `tests/test_retrieval.py` | 31 cases: expansion, spelling, abstention, determinism |
+
+### Why BM25F over one text blob
+
+Catalog names are internal style codes — `SWEATSHIRT OC`, `tvp`, `Jerry jogger
+bottoms`, `Mimmi sneaker` — so a shopper's word usually lands on `product_type`, not
+the name. Five field groups are indexed separately (`type`, `cat`, `attr`, `name`,
+`desc`) with `product_type` weighted 9× against description 1×.
+
+A query becomes a list of **requirements**. Each carries the literal terms to score
+*and* the catalog attribute values it resolves to; a product satisfies a requirement
+by matching either. The share of requirements a product satisfies drives ranking and
+abstention, so an unrelated query has nothing to satisfy and returns nothing.
+
+### The lexicon, and the honesty problem with it
+
+`data/lexicon.json` holds 185 synonyms, 56 intents, 116 stopwords and 558 catalog
+targets, all verified present in the catalog by `scripts/check_lexicon.py`.
+
+- **Synonyms** map shopper words to catalog values and **anchor** a query:
+  `sneakers → product_type Sneakers` (1,590 products, but only 13 names contain
+  "sneaker"), `jeans → Trousers + pattern Denim` (2,870 products; no Jeans type
+  exists).
+- **Intents** map an occasion to defensible attributes but deliberately **never
+  anchor**: `lazy / sunday / comfortable → Hoodie, Pyjama set, Robe, Slippers`.
+  Anchoring on intents made `a titanium wedding suit of armour` return dresses,
+  because "wedding" and "suit" are intent words. With intents non-anchoring, that
+  query correctly returns empty while `something comfortable for a lazy Sunday`
+  returns hoodies.
+
+**I wrote both the eval cases and this lexicon**, so the `vague` and `synonym` gains
+are partly self-confirming — the held-out split was written by the same hand. The
+real tests are the user's own labels (`scripts/label.py`) and the hidden suite.
+Treat the `unusual` numbers as the least trustworthy in the table, and review the
+lexicon with a fashion eye.
+
+### Spelling correction
+
+Edit distance against a **468-term reviewed vocabulary** (facet value tokens, synonym
+and intent keys, a short material/fit list) — not the whole 15,402-term index, so a
+typo can only ever resolve to a shopping word. Limit 1 edit under 6 characters, 2
+above.
+
+One real finding: the **catalog's own text contains typos**. `sunglases` appears in a
+product's text with document frequency 1, so "is it in the vocabulary?" wrongly
+treated it as correctly spelled and the query matched exactly one product out of 618
+Sunglasses. Correction now triggers for any term rarer than `typo_min_df` (8), not
+just unknown terms.
+
+Also fixed: catalog values are now matched with stopwords stripped. `wear` is a
+stopword, so `Dog Wear` could never be matched as a phrase; it is now reachable
+through `dog` alone. Seven catalog values were affected and the only collision
+created is `Dog Wear` / `Dog wear`, which is the desired one.
+
+### Tuning: what the sweep actually bought
+
+Coordinate descent over 15 axes on dev: **dev 54.15 → 57.57, but held out
+55.41 → 55.01**. That is overfitting, so the descent result was **rejected**. Per-axis
+sweeps against both splits adopted only changes that help or are neutral on both:
+
+| Axis | Default | Adopted | Dev | Held out | Why |
+| --- | --- | --- | --- | --- | --- |
+| `no_anchor_coverage` | 0.75 | **0.9** | +0.94 | 0.00 | dev abstention 0.75 → 0.88, no held-out cost |
+| `coverage_exponent` | 2.0 | **1.0** | +1.12 | +0.00 | neutral on held out |
+| `score_floor` | 0.08 | **0.15** | 0.00 | 0.00 | same quality, p95 24 → 20 ms |
+| `synonym_boost` | 7.0 | 7.0 (kept) | +0.03 | −0.52 | **rejected**, hurts held out |
+| `typo_min_df` | 8 | 8 (kept) | +0.13 | 0.00 | **rejected**, more aggressive correction for nothing |
+| `desc_df_share` | 0.12 | 0.12 (kept) | +0.06 | +0.12 | **rejected**, +2 ms p95 for noise |
+| `coverage_slack` | 1 | 1 (kept) | 0 is −2.5 | 0 is −3.4 | 1 and 2 identical |
+
+Adopted combination: dev 54.15 → **56.20**, held out 55.41 → **55.41**. So tuning
+contributed about +2 dev points and **zero** held-out points: the phase's gain came
+from the architecture, not the knobs.
+
+### Measured spike: SQLite FTS5 vs in-process BM25F
+
+Cores only — expansion, correction, anchoring and abstention disabled on both sides —
+over the same documents, same query terms, same rubric, 25 relevance cases:
+
+| Core | Build | nDCG@10 | p50 | p95 | Artefact |
+| --- | --- | --- | --- | --- | --- |
+| In-process BM25F | 5.56 s | **0.5570** | 1.24 ms | **14.54 ms** | none |
+| SQLite FTS5 | **1.17 s** | 0.5353 | **0.84 ms** | 18.92 ms | 54 MB database |
+
+**Decision: keep in-process BM25F, drop FTS5.** The cores are within noise on
+quality, FTS5 builds 4.8× faster and has a better p50, but a worse p95 — and p95 is
+what is scored. The decisive reason is not in the table: `bm25()` returns one opaque
+score per row, so FTS5 cannot express attribute boosts or per-document requirement
+coverage, which is where this phase's gain actually comes from. Adopting it would
+mean shipping a 54 MB second store *and* reimplementing that layer on top of it, for
+no measured gain. `scripts/spike_fts5.py` is kept as evidence; there is one
+production path.
+
+### Score movement
+
+| Area | Max | Phase 3 | Phase 4 | Dev | Held out |
+| --- | --- | --- | --- | --- | --- |
+| Validity and constraints | 25 | 25.000 | **25.000** | 1.0000 | 1.0000 |
+| Ranking relevance | 30 | 16.135 | **28.864** | 0.9453 | 1.0000 |
+| Unusual (meaningful) | 7.5 | 0.000 | **6.000** | 1.0000 | 0.5000 |
+| Irrelevant (abstention) | 7.5 | 7.500 | **6.875** | 0.8750 | 1.0000 |
+| Mixed choices | 15 | 2.620 | **11.631** | 0.7537 | 0.8187 |
+| Complementary recommendations | 10 | 1.000 | **2.299** | 0.2477 | 0.1883 |
+| **Functional** | 95 | 52.255 | **80.669** | 81.204 | 80.414 |
+
+Diagnostics: nDCG@10 **0.2951 → 0.8122**, mixed coverage **0.1528 → 0.6111**,
+contract pass rate **0.6346 → 0.9327**, mean validity **0.9087 → 0.9832**.
+
+**Abstention went down, as predicted in phase 3**: 1.0000 → 0.9167. The phase 3 score
+was perfect because nothing matched anything; one case now fails honestly
+(`irr-09`, "a dress for under INR 50") because the engine finds dresses and does not
+yet read the impossible budget out of the prose.
+
+### Cost
+
+| Metric | Phase 2/3 | Phase 4 |
+| --- | --- | --- |
+| Startup to healthy `/healthz` | 3.23 s | **6.83 s** |
+| RSS after startup | 803 MB | **1,103 MB** |
+| Empty-query pool p95 (concurrency 1) | 16.3 ms | 15.4 ms |
+| Empty-query pool p95 (concurrency 5) | 63.6 ms | 61.0 ms |
+| Pooled p95 | 60.1 ms | 55.7 ms |
+| Per-case round trip p95 (incl. text queries) | 54.1 ms | 36.6 ms |
+| Tests | 61 | **92** |
+
+The empty-query pool is untouched by this phase — it never scores text — so the
+performance picture is unchanged. +3.6 s startup and +300 MB buy the inverted index.
+
+### Still open after phase 4 (7 failing cases)
+
+1. `irr-09`, `mix-09` — **budgets written in prose are not enforced**. "under INR 50"
+   and "under INR 3000 each" are read as words, not constraints. Phase 5.
+2. `rec-05`, `rec-06`, `rec-10` — **complement phrasing dilutes coverage** and the
+   page comes back empty: "sneakers with socks to go with them" spends requirements
+   on the accessory. Splitting primary from accessory intent is Phase 5.
+3. `vague-08`, `vague-10` — "something to keep my hair out of my face", "rainy day
+   essentials" still abstain; the intent words are outvoted by ordinary English.
+4. `recommend` is still a stub, so complement scores 2.3/10 purely from primary
+   quality. Phase 6.

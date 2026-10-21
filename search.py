@@ -21,11 +21,15 @@ import sys
 from array import array
 from bisect import bisect_left, bisect_right
 from dataclasses import dataclass, field
+from collections import OrderedDict
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Iterable, Sequence
 
 from jsonschema import Draft202012Validator, ValidationError
+
+import retrieval
+from retrieval import Lexicon, QueryPlanner, RankingParams, Retriever, TextIndex
 
 ROOT = Path(__file__).resolve().parent
 INPUT_SCHEMA = json.loads((ROOT / 'schemas/input.schema.json').read_text())
@@ -48,6 +52,10 @@ DEFAULTS: dict[str, Any] = {
 
 #: Use a selective posting/range source when it covers at most 1/N of the catalog.
 MATERIALIZE_RATIO = 8
+#: Repeated identical requests (including the benchmark's pagination probes) reuse
+#: a scored selection. The key is the query term tuple; filters, sorting, and
+#: pagination are all applied outside the cache.
+SCORE_CACHE_SIZE = 32
 
 EMPTY_POSITIONS: array[int] = array('i')
 LOG = logging.getLogger('polaris.search')
@@ -179,8 +187,6 @@ class CatalogIndex:
     price_values: array[float]
     rating_values: array[float]
     review_values: array[int]
-    text_terms: list[frozenset[str]] = field(default_factory=list)
-    name_terms: list[tuple[str, ...]] = field(default_factory=list)
 
 
 def build_index(products: Sequence[dict[str, Any]]) -> CatalogIndex:
@@ -203,7 +209,7 @@ def build_index(products: Sequence[dict[str, Any]]) -> CatalogIndex:
     orders = _build_orders(size, prices, ratings, review_counts)
     rated_count = sum(1 for r in ratings if r is not None)
 
-    index = CatalogIndex(
+    return CatalogIndex(
         size=size,
         ids=ids,
         folded=folded,
@@ -219,8 +225,6 @@ def build_index(products: Sequence[dict[str, Any]]) -> CatalogIndex:
         review_values=array('i', (review_counts[i] for i in
                                   orders[('review_count', 'asc')])),
     )
-    _build_text_terms(index, products)
-    return index
 
 
 def _build_orders(size: int, prices: array[float], ratings: list[float | None],
@@ -247,15 +251,6 @@ def _build_orders(size: int, prices: array[float], ratings: list[float | None],
     orders[('rating', 'desc')] = array(
         'i', sorted(rated, key=lambda i: -ratings[i]) + unrated)  # type: ignore[operator]
     return orders
-
-
-def _build_text_terms(index: CatalogIndex, products: Sequence[dict[str, Any]]) -> None:
-    """Per-product term sets for the baseline lexical matcher."""
-    fields = ('name', 'description', *STRING_FILTERS)
-    index.text_terms = [
-        frozenset(tokens(' '.join(str(p.get(k) or '') for k in fields))) for p in products
-    ]
-    index.name_terms = [tokens(str(p.get('name') or '')) for p in products]
 
 
 # --------------------------------------------------------------------------- #
@@ -364,10 +359,29 @@ def _order_key(index: CatalogIndex, sort_by: str, descending: bool
 class Catalog:
     """The frozen catalog plus its search index."""
 
-    def __init__(self, products: Iterable[dict[str, Any]]) -> None:
+    def __init__(self, products: Iterable[dict[str, Any]],
+                 params: RankingParams | None = None,
+                 lexicon: Lexicon | None = None) -> None:
         self.products: list[dict[str, Any]] = sorted(products, key=lambda p: p['id'])
         self.index = build_index(self.products)
         self.position_of: dict[str, int] = {pid: i for i, pid in enumerate(self.index.ids)}
+
+        self.params = params or RankingParams()
+        self.lexicon = lexicon or Lexicon.load()
+        self.text_index = TextIndex(self.products, self.lexicon)
+        self.vocabularies = {f: set(self.index.postings[f]) - {''}
+                             for f in STRING_FILTERS}
+        self._score_cache: OrderedDict[tuple[str, ...], dict[int, float]] = OrderedDict()
+        self.set_params(self.params)
+
+    def set_params(self, params: RankingParams) -> None:
+        """Swap ranking parameters without rebuilding the index. Used by the sweep."""
+        self.params = params
+        self.planner = QueryPlanner(self.text_index, self.vocabularies, self.lexicon,
+                                    params)
+        self.retriever = Retriever(self.text_index, self.index.postings, self.planner,
+                                   params)
+        self._score_cache.clear()
 
     @classmethod
     def load(cls, path: str | Path) -> 'Catalog':
@@ -376,15 +390,23 @@ class Catalog:
     # -- extension points ---------------------------------------------------- #
 
     def relevance(self, product: dict[str, Any], query_tokens: Sequence[str]) -> float:
-        """Baseline strict lexical AND match with a product-name boost."""
-        return self.score_position(self.position_of[str(product['id'])], tuple(query_tokens))
+        """Selected relevance for one product; 0 when it was not selected at all."""
+        scores = self.score_all(tuple(query_tokens))
+        return scores.get(self.position_of.get(str(product['id']), -1), 0.0)
 
-    def score_position(self, position: int, terms: tuple[str, ...]) -> float:
-        words = self.index.text_terms[position]
-        if not all(term in words for term in terms):
-            return 0.0
-        name_words = self.index.name_terms[position]
-        return 1.0 + sum(term in name_words for term in terms)
+    def score_all(self, terms: tuple[str, ...]) -> dict[int, float]:
+        """Cached BM25F selection for a term tuple. Filters are applied separately."""
+        if not terms:
+            return {}
+        cached = self._score_cache.get(terms)
+        if cached is not None:
+            self._score_cache.move_to_end(terms)
+            return cached
+        scores = self.retriever.score(' '.join(terms))
+        self._score_cache[terms] = scores
+        if len(self._score_cache) > SCORE_CACHE_SIZE:
+            self._score_cache.popitem(last=False)
+        return scores
 
     def recommend(self, results: list[dict[str, str]], arguments: dict[str, Any]
                   ) -> list[dict[str, str]]:
@@ -448,11 +470,12 @@ class Catalog:
     def _relevance_page(self, request: Request, plan: QueryPlan) -> list[int]:
         """Score every filter-passing product, then order by relevance or a field."""
         index = self.index
-        scored: list[tuple[int, float]] = []
-        for position in self._candidates(request.filters):
-            score = self.score_position(position, plan.terms)
-            if score > 0:
-                scored.append((position, score))
+        scores = self.score_all(plan.terms)
+        if not scores:
+            return []
+        accept = _acceptor(index, request.filters)
+        scored = [(position, value) for position, value in scores.items()
+                  if accept is None or accept(position)]
         if not scored:
             return []
 

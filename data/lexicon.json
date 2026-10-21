@@ -1,0 +1,1760 @@
+{
+  "_README": [
+    "Reviewed mapping from shopper language to catalog values. EVERY value named here",
+    "must exist in the catalog (see analysis/catalog_stats.json); scripts/check_lexicon.py",
+    "fails the build if one does not. This file is data, not code: review it with a",
+    "fashion eye and correct anything odd.",
+    "",
+    "synonyms: a word or phrase a shopper uses -> the catalog attributes it means.",
+    "intents:  an occasion or need -> the catalog attributes that defensibly answer it.",
+    "          Intents are weaker than synonyms and only nudge ranking.",
+    "",
+    "Intent entries are the only place where a query word that names no product maps to",
+    "products at all, so they are the difference between answering 'something for a lazy",
+    "Sunday' and abstaining on it."
+  ],
+  "stopwords": [
+    "a",
+    "about",
+    "above",
+    "also",
+    "an",
+    "and",
+    "any",
+    "anything",
+    "are",
+    "around",
+    "as",
+    "at",
+    "be",
+    "below",
+    "best",
+    "between",
+    "budget",
+    "but",
+    "buy",
+    "by",
+    "can",
+    "cheap",
+    "cheaper",
+    "clothes",
+    "clothing",
+    "cost",
+    "costs",
+    "could",
+    "do",
+    "each",
+    "essentials",
+    "everything",
+    "find",
+    "for",
+    "from",
+    "get",
+    "give",
+    "good",
+    "has",
+    "have",
+    "i",
+    "in",
+    "inr",
+    "is",
+    "it",
+    "item",
+    "items",
+    "its",
+    "just",
+    "less",
+    "like",
+    "looking",
+    "maybe",
+    "me",
+    "more",
+    "my",
+    "need",
+    "new",
+    "nice",
+    "of",
+    "on",
+    "option",
+    "options",
+    "or",
+    "outfit",
+    "outfits",
+    "over",
+    "please",
+    "price",
+    "priced",
+    "product",
+    "products",
+    "quite",
+    "really",
+    "rs",
+    "rupee",
+    "rupees",
+    "search",
+    "shop",
+    "should",
+    "show",
+    "some",
+    "someone",
+    "something",
+    "stuff",
+    "style",
+    "stylish",
+    "than",
+    "that",
+    "the",
+    "their",
+    "them",
+    "there",
+    "these",
+    "they",
+    "thing",
+    "things",
+    "this",
+    "to",
+    "under",
+    "very",
+    "want",
+    "wardrobe",
+    "was",
+    "we",
+    "wear",
+    "wearing",
+    "wears",
+    "what",
+    "which",
+    "will",
+    "with",
+    "worn",
+    "would",
+    "you",
+    "your"
+  ],
+  "synonyms": {
+    "sneakers": {
+      "product_type": [
+        "Sneakers"
+      ]
+    },
+    "sneaker": {
+      "product_type": [
+        "Sneakers"
+      ]
+    },
+    "trainers": {
+      "product_type": [
+        "Sneakers"
+      ]
+    },
+    "trainer": {
+      "product_type": [
+        "Sneakers"
+      ]
+    },
+    "runners": {
+      "product_type": [
+        "Sneakers"
+      ]
+    },
+    "plimsolls": {
+      "product_type": [
+        "Sneakers"
+      ]
+    },
+    "jeans": {
+      "product_type": [
+        "Trousers"
+      ],
+      "pattern": [
+        "Denim"
+      ]
+    },
+    "jean": {
+      "product_type": [
+        "Trousers"
+      ],
+      "pattern": [
+        "Denim"
+      ]
+    },
+    "denims": {
+      "product_type": [
+        "Trousers"
+      ],
+      "pattern": [
+        "Denim"
+      ]
+    },
+    "pants": {
+      "product_type": [
+        "Trousers"
+      ]
+    },
+    "trouser": {
+      "product_type": [
+        "Trousers"
+      ]
+    },
+    "slacks": {
+      "product_type": [
+        "Trousers"
+      ]
+    },
+    "chinos": {
+      "product_type": [
+        "Trousers"
+      ]
+    },
+    "joggers": {
+      "product_type": [
+        "Trousers"
+      ]
+    },
+    "tee": {
+      "product_type": [
+        "T-shirt"
+      ]
+    },
+    "tees": {
+      "product_type": [
+        "T-shirt"
+      ]
+    },
+    "tshirt": {
+      "product_type": [
+        "T-shirt"
+      ]
+    },
+    "tshirts": {
+      "product_type": [
+        "T-shirt"
+      ]
+    },
+    "teeshirt": {
+      "product_type": [
+        "T-shirt"
+      ]
+    },
+    "jumper": {
+      "product_type": [
+        "Sweater"
+      ]
+    },
+    "jumpers": {
+      "product_type": [
+        "Sweater"
+      ]
+    },
+    "pullover": {
+      "product_type": [
+        "Sweater"
+      ]
+    },
+    "sweatshirt": {
+      "product_type": [
+        "Sweater",
+        "Hoodie"
+      ]
+    },
+    "hoody": {
+      "product_type": [
+        "Hoodie"
+      ]
+    },
+    "frock": {
+      "product_type": [
+        "Dress"
+      ]
+    },
+    "gown": {
+      "product_type": [
+        "Dress",
+        "Night gown"
+      ]
+    },
+    "purse": {
+      "product_type": [
+        "Wallet"
+      ]
+    },
+    "handbag": {
+      "product_type": [
+        "Bag",
+        "Shoulder bag",
+        "Tote bag"
+      ]
+    },
+    "tote": {
+      "product_type": [
+        "Tote bag",
+        "Bag"
+      ]
+    },
+    "rucksack": {
+      "product_type": [
+        "Backpack"
+      ]
+    },
+    "specs": {
+      "product_type": [
+        "Eyeglasses",
+        "Sunglasses"
+      ]
+    },
+    "shades": {
+      "product_type": [
+        "Sunglasses"
+      ]
+    },
+    "beanie": {
+      "product_type": [
+        "Hat/beanie",
+        "Beanie"
+      ]
+    },
+    "cap": {
+      "product_type": [
+        "Cap/peaked",
+        "Cap"
+      ]
+    },
+    "stockings": {
+      "product_type": [
+        "Underwear Tights",
+        "Leggings/Tights"
+      ]
+    },
+    "tights": {
+      "product_type": [
+        "Leggings/Tights",
+        "Underwear Tights"
+      ]
+    },
+    "leggings": {
+      "product_type": [
+        "Leggings/Tights"
+      ]
+    },
+    "panties": {
+      "product_type": [
+        "Underwear bottom"
+      ]
+    },
+    "briefs": {
+      "product_type": [
+        "Underwear bottom"
+      ]
+    },
+    "knickers": {
+      "product_type": [
+        "Underwear bottom"
+      ]
+    },
+    "vest": {
+      "product_type": [
+        "Vest top"
+      ]
+    },
+    "tank": {
+      "product_type": [
+        "Vest top"
+      ]
+    },
+    "camisole": {
+      "product_type": [
+        "Vest top"
+      ]
+    },
+    "waistcoat": {
+      "product_type": [
+        "Tailored Waistcoat",
+        "Outdoor Waistcoat"
+      ]
+    },
+    "pyjamas": {
+      "product_type": [
+        "Pyjama set",
+        "Pyjama bottom"
+      ]
+    },
+    "pajamas": {
+      "product_type": [
+        "Pyjama set",
+        "Pyjama bottom"
+      ]
+    },
+    "pyjama": {
+      "product_type": [
+        "Pyjama set",
+        "Pyjama bottom"
+      ]
+    },
+    "nightie": {
+      "product_type": [
+        "Night gown"
+      ]
+    },
+    "nightdress": {
+      "product_type": [
+        "Night gown"
+      ]
+    },
+    "dressing": {
+      "product_type": [
+        "Robe"
+      ]
+    },
+    "bathrobe": {
+      "product_type": [
+        "Robe"
+      ]
+    },
+    "swimsuit": {
+      "product_type": [
+        "Swimsuit"
+      ]
+    },
+    "swimming": {
+      "product_type": [
+        "Swimsuit",
+        "Swimwear bottom",
+        "Bikini top"
+      ]
+    },
+    "costume": {
+      "product_type": [
+        "Swimsuit",
+        "Costumes"
+      ]
+    },
+    "bikini": {
+      "product_type": [
+        "Bikini top",
+        "Swimwear bottom"
+      ]
+    },
+    "trunks": {
+      "product_type": [
+        "Swimwear bottom"
+      ]
+    },
+    "flipflops": {
+      "product_type": [
+        "Flip flop"
+      ]
+    },
+    "thongs": {
+      "product_type": [
+        "Flip flop"
+      ]
+    },
+    "heels": {
+      "product_type": [
+        "Heels",
+        "Pumps",
+        "Heeled sandals"
+      ]
+    },
+    "stilettos": {
+      "product_type": [
+        "Heels",
+        "Pumps"
+      ]
+    },
+    "flats": {
+      "product_type": [
+        "Flat shoe",
+        "Flat shoes",
+        "Ballerinas"
+      ]
+    },
+    "pumps": {
+      "product_type": [
+        "Pumps"
+      ]
+    },
+    "loafers": {
+      "product_type": [
+        "Moccasins",
+        "Flat shoe"
+      ]
+    },
+    "sandal": {
+      "product_type": [
+        "Sandals",
+        "Heeled sandals"
+      ]
+    },
+    "boot": {
+      "product_type": [
+        "Boots",
+        "Bootie"
+      ]
+    },
+    "wellies": {
+      "product_type": [
+        "Boots"
+      ]
+    },
+    "bracelets": {
+      "product_type": [
+        "Bracelet"
+      ]
+    },
+    "earrings": {
+      "product_type": [
+        "Earring",
+        "Earrings"
+      ]
+    },
+    "studs": {
+      "product_type": [
+        "Earring",
+        "Earrings"
+      ]
+    },
+    "necklaces": {
+      "product_type": [
+        "Necklace"
+      ]
+    },
+    "pendant": {
+      "product_type": [
+        "Necklace"
+      ]
+    },
+    "chain": {
+      "product_type": [
+        "Necklace"
+      ]
+    },
+    "jewellery": {
+      "product_type": [
+        "Necklace",
+        "Earring",
+        "Bracelet",
+        "Ring"
+      ]
+    },
+    "jewelry": {
+      "product_type": [
+        "Necklace",
+        "Earring",
+        "Bracelet",
+        "Ring"
+      ]
+    },
+    "scarves": {
+      "product_type": [
+        "Scarf"
+      ]
+    },
+    "muffler": {
+      "product_type": [
+        "Scarf"
+      ]
+    },
+    "glove": {
+      "product_type": [
+        "Gloves"
+      ]
+    },
+    "mittens": {
+      "product_type": [
+        "Gloves"
+      ]
+    },
+    "socks": {
+      "product_type": [
+        "Socks"
+      ]
+    },
+    "sock": {
+      "product_type": [
+        "Socks"
+      ]
+    },
+    "belts": {
+      "product_type": [
+        "Belt"
+      ]
+    },
+    "watches": {
+      "product_type": [
+        "Watch"
+      ]
+    },
+    "umbrellas": {
+      "product_type": [
+        "Umbrella"
+      ]
+    },
+    "overalls": {
+      "product_type": [
+        "Dungarees",
+        "Outdoor overall"
+      ]
+    },
+    "dungaree": {
+      "product_type": [
+        "Dungarees"
+      ]
+    },
+    "playsuit": {
+      "product_type": [
+        "Jumpsuit/Playsuit"
+      ]
+    },
+    "jumpsuit": {
+      "product_type": [
+        "Jumpsuit/Playsuit"
+      ]
+    },
+    "romper": {
+      "product_type": [
+        "Jumpsuit/Playsuit"
+      ]
+    },
+    "bodysuit": {
+      "product_type": [
+        "Bodysuit",
+        "Underwear body"
+      ]
+    },
+    "blazers": {
+      "product_type": [
+        "Blazer"
+      ]
+    },
+    "coats": {
+      "product_type": [
+        "Coat"
+      ]
+    },
+    "parka": {
+      "product_type": [
+        "Jacket",
+        "Coat"
+      ]
+    },
+    "anorak": {
+      "product_type": [
+        "Jacket"
+      ]
+    },
+    "cardi": {
+      "product_type": [
+        "Cardigan"
+      ]
+    },
+    "shirts": {
+      "product_type": [
+        "Shirt"
+      ]
+    },
+    "blouses": {
+      "product_type": [
+        "Blouse"
+      ]
+    },
+    "skirts": {
+      "product_type": [
+        "Skirt"
+      ]
+    },
+    "shorts": {
+      "product_type": [
+        "Shorts"
+      ]
+    },
+    "dresses": {
+      "product_type": [
+        "Dress"
+      ]
+    },
+    "hairband": {
+      "product_type": [
+        "Hairband",
+        "Hair/alice band",
+        "Alice band"
+      ]
+    },
+    "scrunchie": {
+      "product_type": [
+        "Hair string",
+        "Hair ties"
+      ]
+    },
+    "bobbles": {
+      "product_type": [
+        "Hair ties",
+        "Hair string"
+      ]
+    },
+    "clips": {
+      "product_type": [
+        "Hair clip"
+      ]
+    },
+    "sunnies": {
+      "product_type": [
+        "Sunglasses"
+      ]
+    },
+    "brassiere": {
+      "product_type": [
+        "Bra"
+      ]
+    },
+    "bralette": {
+      "product_type": [
+        "Bra"
+      ]
+    },
+    "mens": {
+      "audience": [
+        "Menswear"
+      ]
+    },
+    "men": {
+      "audience": [
+        "Menswear"
+      ]
+    },
+    "male": {
+      "audience": [
+        "Menswear"
+      ]
+    },
+    "gents": {
+      "audience": [
+        "Menswear"
+      ]
+    },
+    "womens": {
+      "audience": [
+        "Ladieswear",
+        "Ladies Accessories"
+      ]
+    },
+    "women": {
+      "audience": [
+        "Ladieswear",
+        "Ladies Accessories"
+      ]
+    },
+    "ladies": {
+      "audience": [
+        "Ladieswear",
+        "Ladies Accessories"
+      ]
+    },
+    "female": {
+      "audience": [
+        "Ladieswear",
+        "Ladies Accessories"
+      ]
+    },
+    "kids": {
+      "audience": [
+        "Children Sizes 92-140",
+        "Children Sizes 134-170",
+        "Children Accessories, Swimwear"
+      ]
+    },
+    "kid": {
+      "audience": [
+        "Children Sizes 92-140",
+        "Children Sizes 134-170"
+      ]
+    },
+    "children": {
+      "audience": [
+        "Children Sizes 92-140",
+        "Children Sizes 134-170",
+        "Children Accessories, Swimwear"
+      ]
+    },
+    "child": {
+      "audience": [
+        "Children Sizes 92-140",
+        "Children Sizes 134-170"
+      ]
+    },
+    "girls": {
+      "section": [
+        "Kids Girl",
+        "Young Girl",
+        "Girls Underwear & Basics",
+        "Baby Girl"
+      ]
+    },
+    "boys": {
+      "section": [
+        "Kids Boy",
+        "Young Boy",
+        "Boys Underwear & Basics",
+        "Baby Boy"
+      ]
+    },
+    "baby": {
+      "audience": [
+        "Baby Sizes 50-98"
+      ]
+    },
+    "babies": {
+      "audience": [
+        "Baby Sizes 50-98"
+      ]
+    },
+    "newborn": {
+      "audience": [
+        "Baby Sizes 50-98"
+      ]
+    },
+    "infant": {
+      "audience": [
+        "Baby Sizes 50-98"
+      ]
+    },
+    "toddler": {
+      "audience": [
+        "Baby Sizes 50-98",
+        "Children Sizes 92-140"
+      ]
+    },
+    "maternity": {
+      "section": [
+        "Mama"
+      ]
+    },
+    "pregnancy": {
+      "section": [
+        "Mama"
+      ]
+    },
+    "teen": {
+      "audience": [
+        "Divided"
+      ],
+      "section": [
+        "Divided Collection"
+      ]
+    },
+    "navy": {
+      "color": [
+        "Dark Blue"
+      ]
+    },
+    "cream": {
+      "color": [
+        "Off White",
+        "Light Beige"
+      ]
+    },
+    "ivory": {
+      "color": [
+        "Off White",
+        "White"
+      ]
+    },
+    "maroon": {
+      "color": [
+        "Dark Red"
+      ]
+    },
+    "burgundy": {
+      "color": [
+        "Dark Red"
+      ]
+    },
+    "khaki": {
+      "color": [
+        "Greenish Khaki"
+      ]
+    },
+    "olive": {
+      "color": [
+        "Greenish Khaki",
+        "Dark Green"
+      ]
+    },
+    "tan": {
+      "color": [
+        "Beige",
+        "Dark Beige"
+      ]
+    },
+    "charcoal": {
+      "color": [
+        "Dark Grey"
+      ]
+    },
+    "teal": {
+      "color": [
+        "Dark Turquoise",
+        "Turquoise"
+      ]
+    },
+    "lilac": {
+      "color": [
+        "Light Purple"
+      ]
+    },
+    "mustard": {
+      "color": [
+        "Dark Yellow"
+      ]
+    },
+    "rose": {
+      "color": [
+        "Pink",
+        "Light Pink"
+      ]
+    },
+    "blush": {
+      "color": [
+        "Light Pink"
+      ]
+    },
+    "golden": {
+      "color": [
+        "Gold"
+      ]
+    },
+    "metallic": {
+      "pattern": [
+        "Metallic",
+        "Glittering/Metallic"
+      ]
+    },
+    "striped": {
+      "pattern": [
+        "Stripe"
+      ]
+    },
+    "stripes": {
+      "pattern": [
+        "Stripe"
+      ]
+    },
+    "checked": {
+      "pattern": [
+        "Check"
+      ]
+    },
+    "chequered": {
+      "pattern": [
+        "Check"
+      ]
+    },
+    "plaid": {
+      "pattern": [
+        "Check"
+      ]
+    },
+    "tartan": {
+      "pattern": [
+        "Check"
+      ]
+    },
+    "polka": {
+      "pattern": [
+        "Dot"
+      ]
+    },
+    "dotted": {
+      "pattern": [
+        "Dot"
+      ]
+    },
+    "spotted": {
+      "pattern": [
+        "Dot"
+      ]
+    },
+    "floral": {
+      "pattern": [
+        "All over pattern"
+      ]
+    },
+    "printed": {
+      "pattern": [
+        "Front print",
+        "Placement print",
+        "All over pattern"
+      ]
+    },
+    "plain": {
+      "pattern": [
+        "Solid"
+      ]
+    },
+    "solid": {
+      "pattern": [
+        "Solid"
+      ]
+    },
+    "sequins": {
+      "pattern": [
+        "Sequin"
+      ]
+    },
+    "sequined": {
+      "pattern": [
+        "Sequin"
+      ]
+    },
+    "glittery": {
+      "pattern": [
+        "Glittering/Metallic",
+        "Sequin"
+      ]
+    },
+    "sparkly": {
+      "pattern": [
+        "Glittering/Metallic",
+        "Sequin"
+      ]
+    },
+    "sparkle": {
+      "pattern": [
+        "Glittering/Metallic",
+        "Sequin"
+      ]
+    },
+    "shimmer": {
+      "pattern": [
+        "Glittering/Metallic"
+      ]
+    },
+    "embroidered": {
+      "pattern": [
+        "Embroidery"
+      ]
+    },
+    "lacy": {
+      "pattern": [
+        "Lace"
+      ]
+    },
+    "mesh": {
+      "pattern": [
+        "Mesh"
+      ]
+    },
+    "sheer": {
+      "pattern": [
+        "Transparent",
+        "Mesh"
+      ]
+    },
+    "heathered": {
+      "pattern": [
+        "Melange"
+      ]
+    },
+    "marl": {
+      "pattern": [
+        "Melange"
+      ]
+    },
+    "footwear": {
+      "category": [
+        "Shoes"
+      ]
+    },
+    "shoes": {
+      "category": [
+        "Shoes"
+      ]
+    },
+    "shoe": {
+      "category": [
+        "Shoes"
+      ]
+    },
+    "accessory": {
+      "category": [
+        "Accessories"
+      ]
+    },
+    "accessories": {
+      "category": [
+        "Accessories"
+      ]
+    },
+    "nightwear": {
+      "category": [
+        "Nightwear",
+        "Underwear/nightwear"
+      ]
+    },
+    "sleepwear": {
+      "category": [
+        "Nightwear",
+        "Underwear/nightwear"
+      ]
+    },
+    "loungewear": {
+      "category": [
+        "Nightwear"
+      ],
+      "product_type": [
+        "Hoodie",
+        "Robe"
+      ]
+    },
+    "underwear": {
+      "category": [
+        "Underwear",
+        "Underwear/nightwear"
+      ]
+    },
+    "lingerie": {
+      "category": [
+        "Underwear"
+      ],
+      "section": [
+        "Womens Lingerie"
+      ]
+    },
+    "swimwear": {
+      "category": [
+        "Swimwear"
+      ]
+    },
+    "beachwear": {
+      "category": [
+        "Swimwear"
+      ]
+    },
+    "outerwear": {
+      "product_type": [
+        "Coat",
+        "Jacket"
+      ]
+    },
+    "cosmetics": {
+      "category": [
+        "Cosmetic"
+      ]
+    },
+    "makeup": {
+      "category": [
+        "Cosmetic"
+      ]
+    },
+    "bags": {
+      "product_type": [
+        "Bag",
+        "Tote bag",
+        "Shoulder bag",
+        "Cross-body bag",
+        "Backpack",
+        "Weekend/Gym bag",
+        "Bumbag"
+      ]
+    }
+  },
+  "intents": {
+    "lazy": {
+      "product_type": [
+        "Hoodie",
+        "Pyjama set",
+        "Pyjama bottom",
+        "Robe",
+        "Night gown",
+        "Slippers",
+        "Sweater"
+      ]
+    },
+    "sunday": {
+      "product_type": [
+        "Hoodie",
+        "Pyjama set",
+        "Pyjama bottom",
+        "Robe",
+        "Night gown",
+        "Slippers"
+      ]
+    },
+    "lounging": {
+      "product_type": [
+        "Hoodie",
+        "Pyjama set",
+        "Robe",
+        "Slippers"
+      ]
+    },
+    "relax": {
+      "product_type": [
+        "Hoodie",
+        "Pyjama set",
+        "Robe",
+        "Slippers"
+      ]
+    },
+    "relaxing": {
+      "product_type": [
+        "Hoodie",
+        "Pyjama set",
+        "Robe",
+        "Slippers"
+      ]
+    },
+    "comfortable": {
+      "product_type": [
+        "Hoodie",
+        "Sweater",
+        "Pyjama set",
+        "Leggings/Tights",
+        "Robe",
+        "Slippers"
+      ]
+    },
+    "comfy": {
+      "product_type": [
+        "Hoodie",
+        "Sweater",
+        "Pyjama set",
+        "Leggings/Tights",
+        "Robe",
+        "Slippers"
+      ]
+    },
+    "cosy": {
+      "product_type": [
+        "Hoodie",
+        "Sweater",
+        "Cardigan",
+        "Robe",
+        "Slippers"
+      ]
+    },
+    "cozy": {
+      "product_type": [
+        "Hoodie",
+        "Sweater",
+        "Cardigan",
+        "Robe",
+        "Slippers"
+      ]
+    },
+    "casual": {
+      "product_type": [
+        "T-shirt",
+        "Hoodie",
+        "Sweater",
+        "Trousers",
+        "Shorts"
+      ],
+      "section": [
+        "Womens Casual",
+        "Contemporary Casual"
+      ]
+    },
+    "beach": {
+      "product_type": [
+        "Swimsuit",
+        "Bikini top",
+        "Swimwear bottom",
+        "Sarong",
+        "Flip flop",
+        "Straw hat"
+      ],
+      "category": [
+        "Swimwear"
+      ]
+    },
+    "holiday": {
+      "product_type": [
+        "Swimsuit",
+        "Bikini top",
+        "Swimwear bottom",
+        "Sarong",
+        "Flip flop",
+        "Sunglasses"
+      ]
+    },
+    "vacation": {
+      "product_type": [
+        "Swimsuit",
+        "Bikini top",
+        "Swimwear bottom",
+        "Sarong",
+        "Flip flop",
+        "Sunglasses"
+      ]
+    },
+    "summer": {
+      "product_type": [
+        "Shorts",
+        "Dress",
+        "Vest top",
+        "Sandals",
+        "Sarong",
+        "Straw hat",
+        "Sunglasses"
+      ]
+    },
+    "poolside": {
+      "product_type": [
+        "Swimsuit",
+        "Bikini top",
+        "Sarong",
+        "Flip flop"
+      ]
+    },
+    "winter": {
+      "product_type": [
+        "Coat",
+        "Jacket",
+        "Sweater",
+        "Hoodie",
+        "Gloves",
+        "Scarf",
+        "Hat/beanie",
+        "Beanie",
+        "Boots"
+      ]
+    },
+    "warm": {
+      "product_type": [
+        "Coat",
+        "Jacket",
+        "Sweater",
+        "Hoodie",
+        "Gloves",
+        "Scarf",
+        "Hat/beanie",
+        "Cardigan"
+      ]
+    },
+    "cold": {
+      "product_type": [
+        "Coat",
+        "Jacket",
+        "Sweater",
+        "Gloves",
+        "Scarf",
+        "Hat/beanie",
+        "Long John"
+      ]
+    },
+    "snow": {
+      "product_type": [
+        "Coat",
+        "Jacket",
+        "Gloves",
+        "Boots",
+        "Outdoor overall"
+      ]
+    },
+    "rain": {
+      "product_type": [
+        "Umbrella",
+        "Coat",
+        "Jacket",
+        "Boots"
+      ]
+    },
+    "rainy": {
+      "product_type": [
+        "Umbrella",
+        "Coat",
+        "Jacket",
+        "Boots"
+      ]
+    },
+    "autumn": {
+      "product_type": [
+        "Jacket",
+        "Cardigan",
+        "Sweater",
+        "Boots",
+        "Scarf"
+      ]
+    },
+    "office": {
+      "product_type": [
+        "Blazer",
+        "Shirt",
+        "Blouse",
+        "Trousers",
+        "Skirt",
+        "Tailored Waistcoat",
+        "Pumps"
+      ],
+      "section": [
+        "Womens Tailoring",
+        "Men Suits & Tailoring",
+        "Contemporary Smart"
+      ]
+    },
+    "work": {
+      "product_type": [
+        "Blazer",
+        "Shirt",
+        "Blouse",
+        "Trousers"
+      ],
+      "section": [
+        "Womens Tailoring",
+        "Men Suits & Tailoring"
+      ]
+    },
+    "smart": {
+      "product_type": [
+        "Blazer",
+        "Shirt",
+        "Blouse",
+        "Trousers",
+        "Tailored Waistcoat"
+      ],
+      "section": [
+        "Contemporary Smart",
+        "Womens Tailoring",
+        "Men Suits & Tailoring"
+      ]
+    },
+    "formal": {
+      "product_type": [
+        "Blazer",
+        "Shirt",
+        "Trousers",
+        "Tie",
+        "Tailored Waistcoat",
+        "Pumps"
+      ],
+      "section": [
+        "Womens Tailoring",
+        "Men Suits & Tailoring"
+      ]
+    },
+    "business": {
+      "product_type": [
+        "Blazer",
+        "Shirt",
+        "Trousers"
+      ],
+      "section": [
+        "Womens Tailoring",
+        "Men Suits & Tailoring"
+      ]
+    },
+    "interview": {
+      "product_type": [
+        "Blazer",
+        "Shirt",
+        "Blouse",
+        "Trousers"
+      ],
+      "section": [
+        "Womens Tailoring",
+        "Men Suits & Tailoring"
+      ]
+    },
+    "suit": {
+      "product_type": [
+        "Blazer",
+        "Trousers",
+        "Tailored Waistcoat"
+      ],
+      "section": [
+        "Men Suits & Tailoring",
+        "Womens Tailoring"
+      ]
+    },
+    "gym": {
+      "audience": [
+        "Sport"
+      ],
+      "section": [
+        "Ladies H&M Sport",
+        "Men H&M Sport",
+        "Kids Sports"
+      ]
+    },
+    "workout": {
+      "audience": [
+        "Sport"
+      ],
+      "section": [
+        "Ladies H&M Sport",
+        "Men H&M Sport",
+        "Kids Sports"
+      ]
+    },
+    "running": {
+      "audience": [
+        "Sport"
+      ],
+      "product_type": [
+        "Sneakers"
+      ],
+      "section": [
+        "Ladies H&M Sport",
+        "Men H&M Sport"
+      ]
+    },
+    "training": {
+      "audience": [
+        "Sport"
+      ],
+      "section": [
+        "Ladies H&M Sport",
+        "Men H&M Sport"
+      ]
+    },
+    "sports": {
+      "audience": [
+        "Sport"
+      ],
+      "section": [
+        "Ladies H&M Sport",
+        "Men H&M Sport",
+        "Kids Sports"
+      ]
+    },
+    "sport": {
+      "audience": [
+        "Sport"
+      ]
+    },
+    "yoga": {
+      "audience": [
+        "Sport"
+      ],
+      "product_type": [
+        "Leggings/Tights",
+        "Vest top"
+      ]
+    },
+    "athletic": {
+      "audience": [
+        "Sport"
+      ]
+    },
+    "exercise": {
+      "audience": [
+        "Sport"
+      ]
+    },
+    "party": {
+      "pattern": [
+        "Sequin",
+        "Glittering/Metallic",
+        "Metallic"
+      ],
+      "product_type": [
+        "Dress",
+        "Top",
+        "Blouse",
+        "Jumpsuit/Playsuit"
+      ]
+    },
+    "festive": {
+      "pattern": [
+        "Sequin",
+        "Glittering/Metallic",
+        "Metallic"
+      ],
+      "product_type": [
+        "Dress",
+        "Top",
+        "Blouse"
+      ]
+    },
+    "evening": {
+      "product_type": [
+        "Dress",
+        "Blazer",
+        "Heels",
+        "Pumps"
+      ]
+    },
+    "wedding": {
+      "product_type": [
+        "Dress",
+        "Blazer",
+        "Jumpsuit/Playsuit",
+        "Tie",
+        "Pumps",
+        "Heeled sandals"
+      ],
+      "section": [
+        "Womens Premium",
+        "Womens Trend",
+        "Womens Tailoring",
+        "Men Suits & Tailoring"
+      ]
+    },
+    "dinner": {
+      "product_type": [
+        "Dress",
+        "Blouse",
+        "Blazer",
+        "Heels",
+        "Pumps"
+      ]
+    },
+    "date": {
+      "product_type": [
+        "Dress",
+        "Blouse",
+        "Heels",
+        "Pumps"
+      ]
+    },
+    "celebration": {
+      "pattern": [
+        "Sequin",
+        "Glittering/Metallic"
+      ],
+      "product_type": [
+        "Dress"
+      ]
+    },
+    "gift": {
+      "product_type": [
+        "Giftbox",
+        "Necklace",
+        "Earring",
+        "Bracelet",
+        "Scarf",
+        "Wallet",
+        "Watch",
+        "Soft Toys"
+      ]
+    },
+    "present": {
+      "product_type": [
+        "Giftbox",
+        "Necklace",
+        "Earring",
+        "Bracelet",
+        "Scarf",
+        "Wallet"
+      ]
+    },
+    "hair": {
+      "product_type": [
+        "Hair/alice band",
+        "Hair clip",
+        "Hair string",
+        "Hair ties",
+        "Hairband",
+        "Headband",
+        "Alice band"
+      ]
+    },
+    "sleep": {
+      "product_type": [
+        "Pyjama set",
+        "Pyjama bottom",
+        "Night gown",
+        "Robe",
+        "Sleeping sack",
+        "Sleep Bag"
+      ]
+    },
+    "bedtime": {
+      "product_type": [
+        "Pyjama set",
+        "Pyjama bottom",
+        "Night gown",
+        "Robe"
+      ]
+    },
+    "school": {
+      "product_type": [
+        "Shirt",
+        "Trousers",
+        "Skirt",
+        "Backpack"
+      ],
+      "audience": [
+        "Children Sizes 92-140",
+        "Children Sizes 134-170"
+      ]
+    },
+    "travel": {
+      "product_type": [
+        "Weekend/Gym bag",
+        "Backpack",
+        "Bag",
+        "Wallet",
+        "Umbrella"
+      ]
+    },
+    "swim": {
+      "category": [
+        "Swimwear"
+      ]
+    },
+    "pregnant": {
+      "section": [
+        "Mama"
+      ]
+    },
+    "nursing": {
+      "section": [
+        "Mama"
+      ]
+    },
+    "pet": {
+      "product_type": [
+        "Dog Wear",
+        "Dog wear"
+      ]
+    }
+  },
+  "typo_extra_vocabulary": [
+    "cotton",
+    "wool",
+    "linen",
+    "denim",
+    "leather",
+    "silk",
+    "satin",
+    "velvet",
+    "cashmere",
+    "jersey",
+    "fleece",
+    "corduroy",
+    "twill",
+    "chiffon",
+    "lace",
+    "organic",
+    "elastic",
+    "ribbed",
+    "knitted",
+    "woven",
+    "padded",
+    "lined",
+    "sleeveless",
+    "longsleeve",
+    "oversized",
+    "slim",
+    "skinny",
+    "regular",
+    "loose",
+    "waterproof",
+    "windproof",
+    "breathable",
+    "stretch",
+    "soft",
+    "warm",
+    "light",
+    "zip",
+    "button",
+    "pocket",
+    "pockets",
+    "hood",
+    "collar",
+    "cuffs",
+    "waistband"
+  ]
+}

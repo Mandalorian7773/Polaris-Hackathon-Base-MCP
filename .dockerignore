@@ -1,7 +1,18 @@
 .git
+.gitattributes
 .venv
+.venv-embed
 __pycache__
 **/__pycache__
 .env
 *.pyc
 .DS_Store
+# Development and measurement artefacts: not needed to serve requests.
+analysis
+eval/runs
+tests
+scripts/spike_fts5.py
+scripts/spike_dense.py
+scripts/build_embeddings.py
+POLARIS_ROADMAP.md
+PROGRESS.md

@@ -54,6 +54,13 @@ class RankingParams:
     #: Terms rarer than this in the catalog are treated as possible misspellings,
     #: because the catalog text contains typos of its own ("sunglases", df 1).
     typo_min_df: int = 8
+    #: ...and truncated style names of its own: "dres" appears 19 times, above
+    #: typo_min_df, so rarity alone is not enough. Also correct when the candidate is
+    #: this many times more common than the term as written ("dress" 7,877 vs 19).
+    typo_df_ratio: int = 20
+    #: Once a query names a product kind, do not pad the page with products that
+    #: merely mention the word -- but only when enough anchored products exist.
+    anchor_dominance_min: int = 20
     #: Description postings are skipped for terms more common than this share.
     desc_df_share: float = 0.12
     #: Reward satisfying more of the query. Swept on dev: 1.0 beat 1.5-3.0 on dev
@@ -284,6 +291,33 @@ class QueryPlanner:
         correction_terms |= set(self.lexicon.extra_vocabulary)
         self.correction_vocabulary = tuple(sorted(
             t for t in correction_terms if len(t) >= 4))
+        self.known_words = frozenset(self.correction_vocabulary)
+
+    @staticmethod
+    def singular(token: str) -> str | None:
+        """Conservative de-pluralisation, for matching catalog values only."""
+        if len(token) > 4 and token.endswith(('sses', 'shes', 'ches', 'xes', 'zes')):
+            return token[:-2]
+        if len(token) > 4 and token.endswith('ies'):
+            return token[:-3] + 'y'
+        if len(token) > 4 and token.endswith('es'):
+            return token[:-1]
+        if len(token) > 3 and token.endswith('s') and not token.endswith('ss'):
+            return token[:-1]
+        return None
+
+    def _window_variants(self, window: Sequence[str]) -> list[list[str]]:
+        """The window, plus one with its head noun de-pluralised.
+
+        "t-shirts" tokenises to ["t", "shirts"], which does not equal the catalog
+        value tokens for "T-shirt" (["t", "shirt"]); without this the query resolved
+        to product_type Shirt instead.
+        """
+        variants = [list(window)]
+        singular = self.singular(window[-1])
+        if singular:
+            variants.append(list(window[:-1]) + [singular])
+        return variants
 
     def _value_tokens(self, value: str) -> list[str]:
         """Tokens of a catalog value, minus stopwords unless that empties it."""
@@ -296,10 +330,10 @@ class QueryPlanner:
     @lru_cache(maxsize=4096)
     def correct(self, term: str) -> str | None:
         """Nearest reviewed vocabulary term, or None when nothing is close enough."""
-        if len(term) < 4:
-            return None
-        if self.index.document_frequency.get(term, 0) >= self.params.typo_min_df:
-            return None
+        if len(term) < 4 or term in self.known_words:
+            return None       # already a reviewed shopping word, so spelled correctly
+        frequency = self.index.document_frequency
+        own = frequency.get(term, 0)
         limit = 1 if len(term) <= 5 else 2
         best: tuple[int, int, str] | None = None
         for candidate in self.correction_vocabulary:
@@ -309,10 +343,18 @@ class QueryPlanner:
             if distance is None or distance == 0:
                 continue
             # Prefer the smaller edit distance, then the more common term.
-            rank = (distance, -self.index.document_frequency.get(candidate, 0), candidate)
+            rank = (distance, -frequency.get(candidate, 0), candidate)
             if best is None or rank < best:
                 best = rank
-        return best[2] if best else None
+        if best is None:
+            return None
+        if own < self.params.typo_min_df:
+            return best[2]
+        # The term exists in the catalog, but a near neighbour dominates it so
+        # heavily that the term is almost certainly a misspelling or a truncation.
+        if frequency.get(best[2], 0) >= self.params.typo_df_ratio * max(own, 1):
+            return best[2]
+        return None
 
     # -- planning ---------------------------------------------------------- #
 
@@ -358,13 +400,14 @@ class QueryPlanner:
         """Returns the scoring targets and whether any of them anchors the query."""
         targets: list[tuple[str, str, float]] = []
         anchored = False
-        forms = {phrase}
+        variants = self._window_variants(window)
+        forms = {' '.join(variant) for variant in variants}
         variant = inflection_variant(window[-1]) if window else None
         if variant:
             forms.add(' '.join((*window[:-1], variant)))
         for field_name, values in self.value_tokens.items():
             for value, tokens in values.items():
-                if ' '.join(tokens) in forms:
+                if tokens in variants:
                     targets.append((field_name, value, self.params.synonym_boost))
                     anchored = anchored or field_name in ANCHOR_FIELDS
         for form in forms:
@@ -400,8 +443,9 @@ class QueryPlanner:
             targets.extend(self._mapping_targets(
                 intent, self.params.intent_boost, ordered=True))
 
-        rare = self.index.document_frequency.get(token, 0) < self.params.typo_min_df
-        if not targets and rare:
+        # correct() decides for itself whether the term looks misspelled; gating the
+        # call on rarity here is what hid "dres" (df 19) from correction.
+        if not targets:
             replacement = self.correct(token)
             if replacement:
                 corrections.append((token, replacement))
@@ -481,14 +525,17 @@ class Retriever:
         totals = [0.0] * size
         satisfied = [0] * size
         grounded = [0] * size
+        anchored = [0] * size
         owner = [-1] * size
+        anchor_owner = [-1] * size
         touched: list[int] = []
 
         for number, requirement in enumerate(plan.requirements):
-            counters = (totals, satisfied, grounded, owner, touched)
-            anchored = bool(requirement.targets)
+            counters = (totals, satisfied, grounded, anchored, owner, anchor_owner,
+                        touched)
+            grounds = bool(requirement.targets)
             for term, term_weight in requirement.terms:
-                self._accumulate_term(term, term_weight, number, anchored, counters)
+                self._accumulate_term(term, term_weight, number, grounds, counters)
             for field_name, value, boost in requirement.targets:
                 self._accumulate_target(field_name, value, boost, number, counters)
 
@@ -515,11 +562,22 @@ class Retriever:
         # With an anchor the named product type is the evidence, so absolute coverage
         # is not required: "a dress for my trip to Reykjavik" is still a dress query.
 
+        # Anchor dominance: once the query names a kind of product and the catalog
+        # holds enough of it, drop products that only mention the word. Without this,
+        # "dress" admits 267 tops and blouses whose names contain "dress", and a
+        # price-ascending page surfaces those first.
+        best_anchored = max(anchored[p] for p in touched)
+        anchor_cut = 0
+        if best_anchored > 0:
+            qualifying = sum(1 for p in touched if anchored[p] >= best_anchored)
+            if qualifying >= self.params.anchor_dominance_min:
+                anchor_cut = best_anchored
+
         coverage_cut = max(1, best_satisfied - self.params.coverage_slack)
         scored: dict[int, float] = {}
         best_score = 0.0
         for position in touched:
-            if satisfied[position] < coverage_cut:
+            if satisfied[position] < coverage_cut or anchored[position] < anchor_cut:
                 continue
             value = totals[position] * (satisfied[position] / required
                                         ) ** self.params.coverage_exponent
@@ -537,7 +595,7 @@ class Retriever:
 
     def _accumulate_term(self, term: str, term_weight: float, number: int,
                          grounds: bool, counters: tuple) -> None:
-        totals, satisfied, grounded, owner, touched = counters
+        totals, satisfied, grounded, _anchored, owner, _anchor_owner, touched = counters
         idf = self.index.idf(term)
         if idf <= 0.0:
             return
@@ -569,10 +627,12 @@ class Retriever:
 
     def _accumulate_target(self, field_name: str, value: str, boost: float, number: int,
                            counters: tuple) -> None:
-        totals, satisfied, grounded, owner, touched = counters
+        (totals, satisfied, grounded, anchored, owner, anchor_owner,
+         touched) = counters
         bucket = self.facet_postings.get(field_name, {}).get(value.strip().casefold())
         if not bucket:
             return
+        anchors = field_name in ANCHOR_FIELDS
         for position in bucket:
             if owner[position] != number:
                 if totals[position] == 0.0 and satisfied[position] == 0:
@@ -580,4 +640,7 @@ class Retriever:
                 owner[position] = number
                 satisfied[position] += 1
                 grounded[position] += 1
+            if anchors and anchor_owner[position] != number:
+                anchor_owner[position] = number
+                anchored[position] += 1
             totals[position] += boost

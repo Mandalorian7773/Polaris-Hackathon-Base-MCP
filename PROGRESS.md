@@ -681,3 +681,455 @@ exactly the kind of change that deserves to be visible.
    left, and the area most exposed to my having written both the cases and the
    lexicon.
 3. `eval/judgments.jsonl` is still empty: every grade is rubric-derived.
+
+---
+
+## Phase 6 — Complementary recommendations (2026-10-21)
+
+Goal: implement `recommend`, which has been a stub since the starter.
+
+Local weighted estimate: **93.11 → 97.15 / 100**. Dev **92.24**, held out **92.45**.
+Recommendation quality@5 **0.1000 → 0.9079**, complement area **5.214 → 9.254 / 10**.
+
+### Added
+
+| Path | Purpose |
+| --- | --- |
+| `recommend.py` | Complement map loading, candidate scanning, scoring, reason text |
+| `data/complements.json` | **Reviewable** complement map, role groups, neutrals, audience families |
+| `tests/test_recommend.py` | 29 cases: contract invariants, substitutes, constraints, internals |
+| `scripts/check_lexicon.py` (extended) | Validates complements too, and rejects substitutes |
+
+### The actual problem: refusing to return substitutes
+
+Similarity returns a second dress for a dress, and the brief is explicit that
+substitutes earn nothing. So the candidate *type* is chosen first from a reviewed map
+(116 types mapped, 516 pairings), and anything filling the same wardrobe slot as the
+primary is excluded outright by a `roles` table of 24 groups. 14 types are declared to
+have no useful complement at all (`Dog Wear`, `Zipper head`, `Sewing kit`, …) and
+return an empty list rather than something forced.
+
+Candidates are scanned per type in a precomputed **quality order** (rating, then review
+count, then ID), so plausible items are considered first instead of walking an
+11,000-product type. Scoring combines complement-type rank, colour compatibility
+(same colour, or one of 12 catalog neutrals), shared pattern, shared audience, and
+rating with review count.
+
+### What the validator caught
+
+Extending `scripts/check_lexicon.py` to the complement map surfaced **33 problems** on
+the first run. Two were real errors in my map; the rest showed my **role groups were
+too coarse**, treating genuine complements as substitutes:
+
+| Flagged pairing | Verdict |
+| --- | --- |
+| `necklace` ↔ `earring` ↔ `bracelet` ↔ `ring` | **Role too coarse.** Different body slots, worn together. Split `jewellery` into `neck` / `ears` / `wrist` / `finger`. |
+| `cardigan` ↔ `t-shirt` / `blouse` / `vest top` | **Role too coarse.** Layering, not substitution. Split `upper` into `upper_base` / `upper_layer`. |
+| `skirt` ↔ `leggings/tights` | **Role too coarse.** Tights under a skirt. New `tights` role. |
+| `robe` ↔ `pyjama set` / `night gown` | **Role too coarse.** A robe goes over pyjamas. Split `sleep` into `sleepwear` / `robe`. |
+| `underdress` → `dress` | **Role too coarse.** Worn underneath. New `underlayer` role. |
+| `watch` ↔ `bracelet` | **Genuine substitute** — same wrist. Pairing removed. |
+| `nipple covers` → `bra` | **Genuine substitute** — worn instead of one. Pairing removed. |
+| `no_complement: Interior textile` | **Real error** — that is a *category*, not a product type. Removed. |
+
+The map now passes: every target exists in the catalog and no complement is a
+substitute, checked both by the script and by a unit test.
+
+### One design decision worth recording
+
+The brief says explicit filters constrain the primary only, but "unqualified global
+requirements such as an audience apply to recommendations too". Applying `audience`
+as an **exact** value match broke the obvious case: a ladies' handbag is filed under
+`Ladies Accessories`, not `Ladieswear`, so a `Ladieswear` filter threw away every bag
+for a `Ladieswear` dress. Audience now carries over as a **family**
+(ladies / men / divided / kids / baby / sport), which still blocks menswear for a
+ladies' dress and babywear for an adult, but keeps the accessory sections reachable.
+
+Split of what carries over to recommendations:
+
+| Carries over | Does not |
+| --- | --- |
+| `audience` (by family), `min_price`, `max_price`, `min_rating`, `min_review_count` | `category`, `product_type`, `color`, `pattern`, `section` |
+
+An accessory budget stated in the query (`a dress under INR 2000 with a bag under
+INR 1000`) replaces an inherited one.
+
+When the shopper names the accessory, all five slots are filled with that type rather
+than spread for variety they did not ask for; when they do not, the ranked complement
+list spreads across types (a dress gets a bag, heeled sandals, a blazer).
+
+### Reasons
+
+Built only from catalog attributes, 1–300 characters, never invented:
+
+> *Black bag to wear with the black dress; the same colour. Rated 5.0 from 4 reviews.*
+> *Beige bag to wear with the black dress; beige is a neutral. Rated 5.0 from 5 reviews.*
+
+Reasons are not machine-graded, so they exist for the reader, not the score.
+
+### Score movement
+
+| Area | Max | Phase 4 | Phase 5 | Phase 6 | Dev | Held out |
+| --- | --- | --- | --- | --- | --- | --- |
+| Validity and constraints | 25 | 25.000 | 25.000 | **25.000** | 1.0000 | 1.0000 |
+| Ranking relevance | 30 | 28.864 | 28.864 | **28.864** | 0.9453 | 1.0000 |
+| Unusual (meaningful) | 7.5 | 6.000 | 6.779 | **6.779** | 1.0000 | 0.7598 |
+| Irrelevant (abstention) | 7.5 | 6.875 | 7.500 | **7.500** | 1.0000 | 1.0000 |
+| Mixed choices | 15 | 11.631 | 14.752 | **14.752** | 0.9752 | 1.0000 |
+| Complementary recommendations | 10 | 2.299 | 5.214 | **9.254** | 0.9253 | 0.9255 |
+| Performance | 5 | 0.000 | 5.000 | **5.000** | — | — |
+| **Total (local estimate)** | 100 | 80.669 | 93.109 | **97.149** | 97.24 | 97.45 |
+
+Recommendation quality@5: **0.9079** overall, 0.9322 dev, 0.8510 held out. Zero failing
+cases; contract pass rate 1.0000.
+
+### Cost
+
+| Metric | Phase 5 | Phase 6 |
+| --- | --- | --- |
+| Startup to healthy `/healthz` | 6.83 s | 6.83 s |
+| RSS after startup | 1,103 MB | 1,103 MB |
+| Pooled empty-query p95 | 53.5 ms | 58.4 ms |
+| Concurrency 1 p95 | 16.4 ms | 17.0 ms |
+| Concurrency 5 p95 | 58.9 ms | 62.3 ms |
+| Tests | 146 | **176** |
+| `smoke_test.py` | PASS | PASS |
+
+The quality order and category expansion are built once at load and cost nothing
+measurable at startup; the empty-query pool never requests recommendations, so the
+p95 movement here is run-to-run noise rather than a real regression.
+
+### Still open after phase 6
+
+1. **`eval/judgments.jsonl` is still empty.** Every grade is rubric-derived, and the
+   complement rubric is the most generous of them: it awards grade 3 for being a
+   complementary *type*, where Bedrock will judge whether that specific bag suits that
+   specific dress. Expect the real complement score to be lower than 9.25.
+2. `data/complements.json` is 516 judgements I made, not catalog facts. The roadmap
+   asks for a fashion-eye review and it has not had one.
+3. `unusual` held out (0.7598) against dev (1.0000) is still the widest split gap.
+4. Phases 7 (gated embeddings), 8 (optional LLM parser), 9 (acceptance, Docker,
+   `REPORT.md`) and 10 (deploy) remain.
+
+---
+
+## Phase 6b — Three ranking defects found by reading the per-case numbers (2026-10-21)
+
+Before starting phase 7 I checked where the remaining loss actually was. **51 of 59
+relevance cases were already at the perfect nDCG ceiling**, and the eight that were
+not pointed at real defects rather than rubric artefacts.
+
+Local weighted estimate: **97.15 → 98.46 / 100**. Dev **93.42**, held out **93.69**.
+
+| Case | Before | Diagnosis |
+| --- | --- | --- |
+| `pag-05` | nDCG 0.029 | `dress` selected 10,585 products, of which **267 were not dresses** — tops and blouses whose *names* contain "dress" (`LOGG Olivia dress` is a `Top`). They scored ~2.2 against a real dress's ~12, but the relative `score_floor` of 0.15 let them through. Sorting that page by price ascending surfaced the cheap impostors first. |
+| `typo-01` | nDCG 0.359 | `blak dres` returned two dresses then a belt, an umbrella and a **side table**. `correct('dres')` returned `None`. |
+| `mix-01` | nDCG 0.881 | `white t-shirts` resolved to `product_type Shirt`, not `T-shirt`. |
+
+### 1. Anchor dominance
+
+Once a query names a kind of product and the catalog holds enough of it, products that
+merely *mention* the word are dropped. `dress` now selects exactly **10,318** products,
+all of them `Dress`, and the price-ascending page at offset 10 is all dresses.
+
+Guarded by `anchor_dominance_min` (20): if too few products carry the anchor, the rule
+does not fire, so a narrow query keeps its tail.
+
+### 2. Spelling correction, third attempt
+
+`typo_min_df` was 8, but **the catalog contains truncated style names**: `dres` appears
+19 times (`EQ Terriyaki dres`, `RR 35 5.Fit and flare tee dres`), so rarity alone said
+"spelled correctly". This is the third variant of the same lesson — phase 4 found
+`sunglases` at df 1, and phase 5 found that a correction must never anchor.
+
+Correction now also fires when a near neighbour **dominates** the term:
+`typo_df_ratio` 20, and `dress` at 7,877 against `dres` at 19 is a ratio of 415. Two
+further guards came out of writing the tests:
+
+- the call was still **gated** on `typo_min_df` before reaching `correct()`, which is
+  what actually hid `dres`. `correct()` now decides for itself.
+- `correct('cotton')` returned **`button`**. A term already in the reviewed vocabulary
+  is spelled correctly by construction, so those are never corrected.
+
+All eight typo cases now land on the right product type:
+
+| Query | Top types |
+| --- | --- |
+| `blak dres` | Dress, Dress, Dress, Dress |
+| `snakers` | Sneakers ×4 |
+| `swetar` | Sweater ×4 |
+| `tshart` | T-shirt ×4 |
+| `troussers` | Trousers ×4 |
+| `sunglases` | Sunglasses ×4 |
+| `neklace` | Necklace ×4 |
+| `hoddie for men` | Hoodie ×4 |
+
+### 3. Conservative plural matching
+
+`t-shirts` tokenises to `['t', 'shirts']`, which does not equal the `T-shirt` value
+tokens `['t', 'shirt']`, so the single-token synonym `shirts → Shirt` won and anchor
+dominance then excluded every actual T-shirt. Catalog values are now matched against
+the window with its head noun de-pluralised as well.
+
+Writing the test found the rule was wrong: `singular('dresses')` returned `dresse`.
+It now handles `sses/shes/ches/xes/zes`, `ies → y`, `es`, and bare `s`, while leaving
+`dress` alone.
+
+`black jeans and white t-shirts` now interleaves black denim Trousers with white
+T-shirts, which is what the brief's own example asks for.
+
+### Score movement
+
+| Area | Max | Phase 6 | Phase 6b | Dev | Held out |
+| --- | --- | --- | --- | --- | --- |
+| Validity and constraints | 25 | 25.000 | **25.000** | 1.0000 | 1.0000 |
+| Ranking relevance | 30 | 28.864 | **29.604** | 0.9868 | 0.9868 |
+| Unusual (meaningful) | 7.5 | 6.779 | **7.272** | 1.0000 | 0.9091 |
+| Irrelevant (abstention) | 7.5 | 7.500 | **7.500** | 1.0000 | 1.0000 |
+| Mixed choices | 15 | 14.752 | **14.827** | 1.0000 | 1.0000 |
+| Complementary recommendations | 10 | 9.254 | **9.254** | 0.9253 | 0.9255 |
+| Performance | 5 | 5.000 | **5.000** | — | — |
+| **Total (local estimate)** | 100 | 97.149 | **98.457** | 98.42 | 98.69 |
+
+nDCG@10 **0.9342 → 0.9747**, mixed coverage 1.0000, abstention 1.0000, false positives
+0.0000, contract pass rate 1.0000, 186 tests, smoke test PASS, pooled p95 60.6 ms,
+startup 6.8 s, RSS 1,103 MB.
+
+### What this means for phase 7
+
+The local suite is now **86 % saturated**: 51 of 59 relevance cases sit at the fixed
+grade-3 ceiling, and held-out ranking is 0.9868. Phase 7's gate is "keep embeddings
+only if held-out ranking/unusual nDCG improves meaningfully" — there is almost no
+headroom left for that gate to measure, which is itself a finding about the eval
+rather than about embeddings.
+
+---
+
+## Phase 8 — Optional LLM query parser, off by default (2026-10-21)
+
+The roadmap gates this phase on "held-out results still show weak vague, synonym or
+mixed queries **and** you're willing to use an API key". Held-out synonym and mixed
+are both at ceiling and no API credentials were available here, so it is implemented
+**off by default and unexercised against a live endpoint** rather than skipped: the
+code, the safety envelope and the fallback path are in place and tested, and turning
+it on is one environment variable.
+
+**No change to the serving path.** `requirements.txt` is untouched, the `anthropic`
+SDK is imported lazily, and with `LLM_PARSER` unset the model is never constructed.
+
+### What the model is allowed to do
+
+Only segment the query and read budgets out of it:
+
+```json
+{"primary":     [{"text": "...", "min_price": n|null, "max_price": n|null}],
+ "accessories": [{"text": "...", "min_price": n|null, "max_price": n|null}]}
+```
+
+The response schema has `additionalProperties: false` and **no attribute fields at
+all** — the model cannot name a colour, a product type or an ID, so it cannot invent
+one. On top of that, **every token of every returned segment must already appear in
+the query**; a segment containing a word the shopper did not write is dropped. The
+segments then go through the unchanged deterministic pipeline, which only ever matches
+real catalog values, and explicit API filters are applied afterwards exactly as
+before. A model answer cannot widen a filter, relax a budget or fabricate a product.
+
+### Fallback, which is the normal path
+
+Rule-based planning runs first, always. The model result replaces it only if every
+check passes. Falls back on: the flag being off, a missing SDK, missing credentials,
+a timeout, a transport or API error, malformed JSON, a schema violation, a
+`refusal` or `max_tokens` stop reason, invented tokens, or nothing surviving
+validation. A call is skipped entirely for a blank query, a query the rules already
+reduce to nothing, and a single-word query — there is nothing to segment.
+
+Deadline 2.5 s per the roadmap, `max_retries=0` so the deadline is the deadline, and
+an LRU cache keyed on the query so the benchmark's repeated pagination probes cost one
+call, not three.
+
+### Configuration
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `LLM_PARSER` | *(off)* | `1`/`true`/`yes`/`on` enables it |
+| `LLM_PARSER_BACKEND` | `api` | `api` (Claude API) or `bedrock` (Amazon Bedrock) |
+| `LLM_PARSER_MODEL` | `claude-opus-5-5` | Bedrock ids get an `anthropic.` prefix automatically |
+| `LLM_PARSER_REGION` | — | AWS region, `bedrock` backend only |
+| `LLM_PARSER_TIMEOUT` | `2.5` | seconds |
+| `LLM_PARSER_EFFORT` | `low` | `output_config.effort` |
+| `LLM_PARSER_CACHE` | `512` | LRU entries |
+
+A Bedrock backend is offered because the deployment is already on AWS, which avoids a
+second credential path.
+
+**One thing to decide before enabling it:** the default model is `claude-opus-5-5`,
+and a 2.5-second deadline may be tight for it. `LLM_PARSER_MODEL=claude-haiku-5-5` is
+the cheap, fast alternative, but that is a cost/quality decision for the team rather
+than one to make silently — measure both with `scripts/evaluate.py` before deploying
+either.
+
+### Tests
+
+35 cases in `tests/test_llm_planner.py`, with the SDK call replaced by a stub so no
+network or credentials are needed: default-off, truthy/falsy flag parsing, malformed
+numeric config, every structurally invalid answer shape, over-long and over-numerous
+segments, nonsense and inverted budgets, invented-token rejection, prompt-injection
+attempts, a model-supplied `color`/`product_type` field being discarded, timeout and
+exception fallback, refusal and truncation fallback, unavailable client, call-skipping
+guards, request shape (schema, deadline, effort), Bedrock prefixing, caching, and
+`Catalog` leaving it off by default.
+
+Writing them caught two bugs in the tests themselves (a missing `plan()` call that
+made a fallback assertion vacuous, and a "spends no call" case whose premise was
+wrong) and turned the third guard into a real one: a single-word query now skips the
+call, which it previously did not.
+
+Total suite: **221 tests**, all passing.
+
+### Honest limitation
+
+The on-path has never run against a real endpoint from this machine. What is proven
+is that the system behaves exactly as before with the flag off, and that every
+failure and malicious-answer path falls back safely. Before enabling it in
+deployment, the roadmap's own bar applies: it must clearly win on held out with zero
+timeouts across three repeated runs.
+
+---
+
+## Phase 7 — Gated embeddings: NOT DECIDED (2026-10-21)
+
+Status: **experiment built and running, gate not applied.** Nothing entered the
+serving path — `requirements.txt` is untouched and `fastembed` lives only in the
+gitignored `.venv-embed`.
+
+### What was measured
+
+| Metric | Value |
+| --- | --- |
+| Model | `BAAI/bge-small-en-v1.5` via fastembed 0.9.0 (ONNX, no torch) |
+| Dimension / dtype | 384, float16, L2-normalised |
+| Throughput | **39 docs/s** single-threaded, 51–62 docs/s at 12 threads |
+| Full build time | **~30–45 minutes** for 105,126 documents |
+| Vector size | 2.3 MB per 3,000 docs → **~80 MB** for the catalog |
+| Process peak RSS during build | **2.4 GB** |
+| Model load | 0.2 s warm, 9.4 s cold (first download ~7 s) |
+| Experiment venv size | 207 MB (onnxruntime, numpy, tokenizers, huggingface-hub) |
+
+A 3,000-document and a 12,000-document build both completed and produced valid
+vectors; the full build was at 20,480/105,126 at handoff.
+
+### Why the gate was not applied
+
+Two reasons, and the first is the honest one:
+
+1. **This environment reaps long-running background jobs.** Three attempts to build
+   the full catalog detached were killed. `--offset/--limit/--shard` were added to
+   `scripts/build_embeddings.py` so the build can be done in foreground chunks, which
+   is how the next run should do it.
+2. **The gate has almost nothing left to measure.** It asks to keep embeddings only
+   if *held-out* ranking/unusual nDCG improves meaningfully. After phase 6b, held-out
+   ranking is **0.9868** and **51 of 59 relevance cases sit at the fixed grade-3
+   ceiling**. A 4-case held-out `unusual` slice cannot establish "meaningful".
+
+That saturation is a finding about the eval, not about embeddings. The measurement
+that would actually be informative is the opposite one: whether dense retrieval
+*damages* abstention, which is currently 1.0000 with 0.0000 false positives.
+`AGENT.md` warns that nearest-neighbour search returns neighbours for nonsense, so
+`scripts/spike_dense.py` sweeps a similarity threshold over the irrelevant cases
+specifically.
+
+### What the next run should do
+
+```sh
+.venv-embed/bin/python -u scripts/build_embeddings.py --threads 12   # to completion
+.venv-embed/bin/python scripts/spike_dense.py
+```
+
+Then apply the gate: keep only if held-out ranking/unusual improves meaningfully,
+abstention does not regress, RSS and startup fit (< 3 GB, < 90 s), and text-query p95
+stays under 1 s. Otherwise delete `.venv-embed/`, `analysis/embeddings/`,
+`scripts/build_embeddings.py` and `scripts/spike_dense.py` — there is nothing else to
+unwind.
+
+---
+
+## Phase 9 — Acceptance (2026-10-21)
+
+### Results
+
+| Check | Result |
+| --- | --- |
+| `python -m unittest discover -s tests` | **221 tests OK** (9.1 s) |
+| Original five starter fixtures | pass, unchanged |
+| `smoke_test.py` | **PASS** |
+| `scripts/check_lexicon.py` | **PASS** — every lexicon and complement target exists; no complement is a substitute |
+| Catalog SHA-256 | **matches** `05b6aa5e…c8f073` |
+| `scripts/evaluate.py --manage` (104 cases) | **98.36 / 100**, zero failing cases, contract pass rate 1.0000 |
+| Validity / nDCG@10 / abstention | 1.0000 / 0.9747 / 1.0000 |
+| Page stability across repeated requests | 50/50 pool pages identical |
+| `GET /mcp` → 405, `GET /healthz` → 200 | verified |
+
+### A measurement caveat worth recording
+
+The acceptance bench reported pooled p95 **157 ms** and the eval reported **234 ms**,
+against 60.6 ms on an idle machine. The cause was the phase 7 embedding build running
+beside them at 1,020 % CPU, load average 23.8. The idle figures stand; the lesson is
+that the latency pool must be run on a quiet machine, which `scripts/preflight.sh`
+now says explicitly. Startup also inflated 6.8 s → 16.1 s under the same load.
+
+### Added
+
+| Path | Purpose |
+| --- | --- |
+| `scripts/preflight.sh` | Pre-submission gate: catalog SHA, tests, validators, smoke test, 405 contract, latency pool, full case suite. Exits non-zero on the first failure. |
+| `REPORT.md` | Changed files, architecture, before/after, rejected experiments, limitations, deploy requirements, verification commands |
+| `HANDOFF.md` | Context for another assistant to continue, including the two open decisions |
+
+### Not done, and why
+
+**The Docker image was never built.** No reachable Docker daemon and no passwordless
+sudo on this machine. The Dockerfile is unchanged from the starter and verified by
+inspection only: `python:3.12-slim`, non-root uid 10001, `/healthz` health check with
+a 60 s start period (startup is ~7 s), `COPY . .` after the tightened
+`.dockerignore`, and `CMD ["python", "server.py"]`. The build and container test must
+be run by the team — ideally on the deploy VM, where it matters:
+
+```sh
+docker build --platform linux/amd64 -t polaris .
+docker run --rm -p 8000:8000 -e MCP_ALLOWED_HOSTS='localhost:*,127.0.0.1:*' polaris
+.venv/bin/python smoke_test.py http://127.0.0.1:8000/mcp
+```
+
+---
+
+## Integration — phases 6–9 plus precision lane (2026-10-21)
+
+Merged six new teammate commits after `0f14aac` into local `main`. Conflict
+resolution retained the calibrated full-catalog precision retrieval and recommendation
+paths while adding the general recommender, phase 6b spelling/plural/anchor fixes,
+optional disabled-by-default LLM planner, experiment tooling, acceptance artifacts,
+and handoff documentation.
+
+### Verification
+
+| Check | Previous merged result | Integrated result |
+| --- | ---: | ---: |
+| Complete unit suite | — | **236/236 pass** |
+| Local 56-case ranking | 0.9644 | **0.9644** |
+| Unusual | 0.9421 | **0.9421** |
+| Irrelevant / abstention | 1.0000 | **1.0000** |
+| Mixed choices | 1.0000 | **1.0000** |
+| Recommendations | 0.9781 | **0.9781** |
+| Contract / invalid calls | 1.0000 / 1.0000 | **1.0000 / 1.0000** |
+| Development / held-out mean | 0.9946 / 0.9098 | **0.9946 / 0.9098** |
+| 56-case p50 / p95 | 6.789 / 21.883 ms | **6.046 / 17.337 ms** |
+| Startup / peak RSS | 6.392 s / 965.52 MB | **6.239 s / 1,032.88 MB** |
+| 300-call performance correctness | 1.0000 | **1.0000** |
+| 300-call performance p50 / p95 | 0.293 / 39.176 ms | **0.757 / 7.478 ms** |
+
+`smoke_test.py`, `protocol_acceptance_test.py`, and `scripts/check_lexicon.py` all
+passed against the integrated source. The protocol acceptance concurrency probe
+completed in 0.447 s. Catalog SHA-256 remained
+`05b6aa5e8e8c1c8c997d584f8288e432862454f8820531e13473443e83c8f073`.
+These are local measurements, not an official benchmark score.

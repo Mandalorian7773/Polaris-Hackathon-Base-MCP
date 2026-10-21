@@ -484,3 +484,112 @@ class ComplementPlanningTests(unittest.TestCase):
     def test_a_corrected_term_still_retrieves_on_its_own(self):
         self.assertTrue([r['id'] for r in self.catalog.search(
             {'query': 'snakers', 'limit': 10})['results']])
+
+
+class SpellingThresholdTests(unittest.TestCase):
+    """The catalog's own text contains typos AND truncated style names."""
+
+    def setUp(self):
+        self.catalog = Catalog(fixture_products())
+        self.planner = self.catalog.planner
+
+    def set_frequency(self, **counts):
+        self.catalog.text_index.document_frequency.update(counts)
+        self.planner.correct.cache_clear()
+
+    def test_a_term_dominated_by_a_near_neighbour_is_corrected(self):
+        """"dres" occurs 19 times in the real catalog, above typo_min_df."""
+        self.set_frequency(dres=19, dress=7877)
+        self.assertEqual(self.planner.correct('dres'), 'dress')
+
+    def test_a_reviewed_shopping_word_is_never_corrected(self):
+        """A word already in the vocabulary is spelled correctly by construction."""
+        for word in ('dress', 'leather', 'cotton', 'black', 'denim', 'sneakers'):
+            with self.subTest(word=word):
+                self.assertIn(word, self.planner.known_words)
+                self.assertIsNone(self.planner.correct(word))
+
+    def test_short_terms_are_never_corrected(self):
+        for word in ('tie', 'bag', 'top', 'a'):
+            self.assertIsNone(self.planner.correct(word))
+
+    def test_correction_requires_the_neighbour_to_dominate(self):
+        from retrieval import RankingParams
+        catalog = Catalog(fixture_products(),
+                          params=RankingParams(typo_min_df=1,
+                                               typo_df_ratio=10 ** 9))
+        catalog.text_index.document_frequency.update(dres=19, dress=7877)
+        catalog.planner.correct.cache_clear()
+        self.assertIsNone(catalog.planner.correct('dres'))
+
+
+class AnchorDominanceTests(unittest.TestCase):
+    """Naming a kind of product must not admit products that merely mention it."""
+
+    def setUp(self):
+        self.catalog = Catalog(fixture_products())
+
+    def types(self, query, **rest):
+        rows = self.catalog.search({'query': query, 'limit': 100, **rest})['results']
+        return [self.catalog.products[self.catalog.position_of[r['id']]]['product_type']
+                for r in rows]
+
+    def test_a_name_mention_does_not_qualify_as_the_product_type(self):
+        """Sneaker descriptions say "Trainers in ..."; a trainers query wants shoes."""
+        from retrieval import RankingParams
+        catalog = Catalog(fixture_products(),
+                          params=RankingParams(anchor_dominance_min=1))
+        rows = catalog.search({'query': 'trainers', 'limit': 100})['results']
+        types = {catalog.products[catalog.position_of[r['id']]]['product_type']
+                 for r in rows}
+        self.assertEqual(types, {'Sneakers'})
+
+    def test_dominance_is_skipped_when_too_few_products_anchor(self):
+        """With a high minimum the rule must not fire and strip the tail."""
+        from retrieval import RankingParams
+        catalog = Catalog(fixture_products(),
+                          params=RankingParams(anchor_dominance_min=10 ** 6))
+        rows = catalog.search({'query': 'trainers', 'limit': 100})['results']
+        self.assertTrue(rows)
+
+    def test_field_sorted_pages_stay_on_the_requested_product_type(self):
+        from retrieval import RankingParams
+        catalog = Catalog(fixture_products(),
+                          params=RankingParams(anchor_dominance_min=1))
+        rows = catalog.search({'query': 'trousers', 'sort_by': 'price',
+                               'sort_order': 'asc', 'limit': 100})['results']
+        self.assertTrue(rows)
+        for row in rows:
+            product = catalog.products[catalog.position_of[row['id']]]
+            self.assertEqual(product['product_type'], 'Trousers')
+
+
+class PluralMatchingTests(unittest.TestCase):
+    def setUp(self):
+        self.catalog = Catalog(fixture_products())
+        self.planner = self.catalog.planner
+
+    def test_singular_is_conservative(self):
+        self.assertEqual(self.planner.singular('shirts'), 'shirt')
+        self.assertEqual(self.planner.singular('dresses'), 'dress')
+        self.assertIsNone(self.planner.singular('dress'))
+        self.assertIsNone(self.planner.singular('bag'))
+
+    def test_a_plural_multi_token_value_still_matches(self):
+        """"t-shirts" tokenises to ["t", "shirts"]; the value is ["t", "shirt"]."""
+        plan = self.planner.plan('white t-shirts')
+        types = {value for requirement in plan.requirements
+                 for field, value, _ in requirement.targets
+                 if field == 'product_type'}
+        self.assertIn('t-shirt', types)
+        self.assertNotIn('shirt', types)
+
+    def test_singular_and_plural_reach_the_same_product_type(self):
+        for singular, plural in (('t-shirt', 't-shirts'), ('dress', 'dresses')):
+            with self.subTest(pair=(singular, plural)):
+                self.assertEqual(self.top_type(singular), self.top_type(plural))
+
+    def top_type(self, query):
+        rows = self.catalog.search({'query': query, 'limit': 1})['results']
+        return self.catalog.products[
+            self.catalog.position_of[rows[0]['id']]]['product_type']

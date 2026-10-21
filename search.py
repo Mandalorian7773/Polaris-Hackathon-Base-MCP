@@ -28,8 +28,11 @@ from typing import Any, Callable, Iterable, Sequence
 
 from jsonschema import Draft202012Validator, ValidationError
 
+import recommend as recommend_module
 import retrieval
+from llm_planner import LLMSettings, LLMShoppingPlanner
 from query_planner import Budget, ItemIntent, ShoppingPlan, ShoppingPlanner
+from recommend import Complements, RecommendationParams, Recommender
 from retrieval import Lexicon, QueryPlanner, RankingParams, Retriever, TextIndex
 
 ROOT = Path(__file__).resolve().parent
@@ -426,7 +429,10 @@ class Catalog:
 
     def __init__(self, products: Iterable[dict[str, Any]],
                  params: RankingParams | None = None,
-                 lexicon: Lexicon | None = None) -> None:
+                 lexicon: Lexicon | None = None,
+                 complements: Complements | None = None,
+                 recommendation_params: RecommendationParams | None = None,
+                 llm_settings: LLMSettings | None = None) -> None:
         self.products: list[dict[str, Any]] = sorted(products, key=lambda p: p['id'])
         self.index = build_index(self.products)
         self.position_of: dict[str, int] = {pid: i for i, pid in enumerate(self.index.ids)}
@@ -445,6 +451,17 @@ class Catalog:
                              for f in STRING_FILTERS}
         self._score_cache: OrderedDict[tuple[str, ...], dict[int, float]] = OrderedDict()
         self.shopping_planner = ShoppingPlanner(names_product=self._names_product)
+        # Off unless LLM_PARSER=1; the wrapper always falls back to the rules.
+        self.llm_settings = llm_settings or LLMSettings.from_env()
+        if self.llm_settings.enabled:
+            self.shopping_planner = LLMShoppingPlanner(self.shopping_planner,
+                                                       self.llm_settings)
+            LOG.info('LLM query parser enabled: %s via %s',
+                     self.llm_settings.model, self.llm_settings.backend)
+        self.complements = complements or Complements.load()
+        self.recommender = Recommender(self, self.complements,
+                                       recommendation_params
+                                       or RecommendationParams())
         self.set_params(self.params)
         self._build_precision_vocabulary()
 
@@ -790,12 +807,57 @@ class Catalog:
 
     def recommend(self, results: list[dict[str, str]], arguments: dict[str, Any]
                   ) -> list[dict[str, str]]:
-        """Return unique catalog-grounded complements for the current result page."""
+        """Complementary products for a page of results. The documented entry point.
+
+        Kept on the published signature; ``search`` uses the richer internal path so
+        the recommender also sees the parsed accessory intents.
+        """
         request = parse_request(arguments)
+        positions = [self.position_of[row['id']] for row in results
+                     if row['id'] in self.position_of]
+        return self.recommendations(request, self.plan_shopping(request), positions)
+
+    def accessory_targets(self, plan: ShoppingPlan
+                          ) -> tuple[tuple[str, ...], dict[str, float]]:
+        """Which product types the shopper asked for as an accessory, and its budget."""
+        types: list[str] = []
+        budget: dict[str, float] = {}
+        for intent in plan.accessories:
+            if not budget:
+                budget = intent.budget.as_filters()
+            requirements = self.planner.plan(intent.text).requirements
+            categories: list[str] = []
+            for requirement in requirements:
+                for field_name, value, _ in requirement.targets:
+                    if field_name == 'product_type' and value not in types:
+                        types.append(value)
+                    elif field_name == 'category' and value not in categories:
+                        categories.append(value)
+            if not types:
+                for category in categories:
+                    for product_type in self.recommender.expand_category(category):
+                        if product_type not in types:
+                            types.append(product_type)
+        return tuple(types), budget
+
+    def recommendations(self, request: Request, plan: ShoppingPlan,
+                        positions: Sequence[int]) -> list[dict[str, str]]:
+        if not request.include_recommendations or not positions:
+            return []
+        if self.use_precision_ranking:
+            return self._precision_recommendations(request, positions)
+        accessory_types, accessory_budget = self.accessory_targets(plan)
+        return self.recommender.build(positions, request.filters, accessory_types,
+                                      accessory_budget)
+
+    def _precision_recommendations(
+            self, request: Request,
+            primary_positions: Sequence[int]) -> list[dict[str, str]]:
+        """Preserve the calibrated full-catalog complementary ranking."""
         shopping_plan = self.shopping_planner.plan(request.query)
         precision_plan = self.precision_plan(request.query)
-        primary_positions = [self.position_of[item['id']] for item in results]
-        primary_ids = {item['id'] for item in results}
+        primary_ids = {self.index.ids[position]
+                       for position in primary_positions}
 
         explicit_scores: dict[int, float] | None = None
         if precision_plan.complement is not None:
@@ -817,8 +879,9 @@ class Catalog:
                 pool = set(explicit_scores)
                 same_audience = {
                     position for position in pool
-                    if self._audience_family(self.products[position]['audience']) ==
-                    self._audience_family(primary['audience'])
+                    if self._audience_family(
+                        self.products[position]['audience']
+                    ) == self._audience_family(primary['audience'])
                 }
                 if same_audience:
                     pool = same_audience
@@ -1339,6 +1402,7 @@ class Catalog:
 
     def search(self, arguments: dict[str, Any]) -> dict[str, Any]:
         request = parse_request(arguments)
+        plan = self.plan_shopping(request)
         if not request.query.strip():
             positions = self._recheck(self._filtered_page(request), request.filters)
         elif self.use_precision_ranking:
@@ -1347,14 +1411,12 @@ class Catalog:
                 request, precision_plan)
             positions = self._recheck(positions, request.filters)
         else:
-            plan = self.plan_shopping(request)
             positions, origin = self._relevance_page(request, plan)
             positions = self._recheck_intents(
                 positions, origin, request, plan)
         results = [{'id': self.index.ids[position]} for position in positions]
-        recommendations = (self.recommend(results, arguments)
-                           if results and request.include_recommendations else [])
-        return {'results': results, 'recommendations': recommendations}
+        return {'results': results,
+                'recommendations': self.recommendations(request, plan, positions)}
 
     def _recheck_intents(self, positions: Sequence[int], origin: dict[int, int],
                          request: Request, plan: ShoppingPlan) -> list[int]:

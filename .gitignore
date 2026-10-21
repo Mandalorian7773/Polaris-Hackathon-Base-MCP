@@ -4,3 +4,7 @@ __pycache__/
 .env
 .DS_Store
 analysis/bench_server.log
+.venv-embed/
+analysis/embeddings/
+analysis/spike_fts5.sqlite
+analysis/embed_build.log

@@ -1,7 +1,7 @@
 """Deterministic, catalog-grounded product retrieval for the MCP tool."""
 from collections import defaultdict
 from dataclasses import dataclass
-from difflib import get_close_matches
+from difflib import SequenceMatcher
 import json
 import math
 import re
@@ -90,6 +90,49 @@ def normalized_text(text):
     return ' '.join(tokens(str(text or '')))
 
 
+def inflection_variants(phrase):
+    """Return one conservative singular/plural variant of a catalog phrase."""
+    words = phrase.split()
+    if not words:
+        return ()
+    word = words[-1]
+    if word.endswith('ies') and len(word) > 3:
+        variant = f'{word[:-3]}y'
+    elif word.endswith('sses'):
+        variant = word[:-2]
+    elif word.endswith('s') and not word.endswith('ss'):
+        variant = word[:-1]
+    elif word.endswith(('ss', 'sh', 'ch', 'x', 'z')):
+        variant = f'{word}es'
+    elif len(word) > 1 and word.endswith('y') and word[-2] not in 'aeiou':
+        variant = f'{word[:-1]}ies'
+    else:
+        variant = f'{word}s'
+    return (' '.join((*words[:-1], variant)),)
+
+
+def edit_distance(left, right, stop=2):
+    """Levenshtein distance with an early cutoff for query correction."""
+    if abs(len(left) - len(right)) > stop:
+        return stop + 1
+    previous = list(range(len(right) + 1))
+    for row_index, left_char in enumerate(left, 1):
+        current = [row_index]
+        row_minimum = row_index
+        for column_index, right_char in enumerate(right, 1):
+            value = min(
+                current[-1] + 1,
+                previous[column_index] + 1,
+                previous[column_index - 1] + (left_char != right_char),
+            )
+            current.append(value)
+            row_minimum = min(row_minimum, value)
+        if row_minimum > stop:
+            return stop + 1
+        previous = current
+    return previous[-1]
+
+
 class Catalog:
     def __init__(self, products):
         self.products = sorted(products, key=lambda p: p['id'])
@@ -148,11 +191,22 @@ class Catalog:
         product_types = sorted(
             {p['product_type'] for p in self.products}, key=lambda value: (-len(value), value))
         self.type_aliases = {}
+
+        def merge_alias(alias, values):
+            existing = self.type_aliases.get(alias)
+            if existing is None:
+                self.type_aliases[alias] = values
+                return
+            self.type_aliases[alias] = tuple(
+                tuple(dict.fromkeys((*old, *new)))
+                for old, new in zip(existing, values)
+            )
+
         for value in product_types:
             phrase = normalized_text(value)
-            self.type_aliases[phrase] = ((value,), (), ())
-            if phrase and not phrase.endswith('s'):
-                self.type_aliases[f'{phrase}s'] = ((value,), (), ())
+            merge_alias(phrase, ((value,), (), ()))
+            for variant in inflection_variants(phrase):
+                merge_alias(variant, ((value,), (), ()))
         self.type_aliases.update({
             'accessory': ((), ('Accessories',), ()),
             'accessories': ((), ('Accessories',), ()),
@@ -245,13 +299,32 @@ class Catalog:
             'vacation': ('Dress', 'Shorts', 'Swimsuit', 'Sandals', 'Sunglasses'),
             'workout': ('T-shirt', 'Shorts', 'Leggings/Tights', 'Sneakers'),
         }
+        self.soft_intents.update({
+            'cold': ('Coat', 'Jacket', 'Sweater', 'Cardigan', 'Hoodie'),
+            'warm': ('Coat', 'Jacket', 'Sweater', 'Cardigan', 'Hoodie'),
+            'interview': ('Blazer', 'Shirt', 'Trousers', 'Blouse'),
+        })
+        canonical_phrases = []
+        for field in ('product_type', 'category', 'color', 'pattern'):
+            canonical_phrases.extend(self.taxonomy_phrases[field])
+        self.correction_vocabulary = frozenset(
+            term for phrase in canonical_phrases for term in tokens(phrase)
+            if len(term) >= 5
+        )
 
     @lru_cache(maxsize=4096)
     def _correct_term(self, term):
-        if term in self.vocabulary or len(term) < 4:
+        if term in self.vocabulary or len(term) < 5:
             return term
-        matches = get_close_matches(term, self.vocabulary, n=1, cutoff=0.88)
-        return matches[0] if matches else term
+        candidates = []
+        for candidate in self.correction_vocabulary:
+            if abs(len(term) - len(candidate)) > 1:
+                continue
+            distance = edit_distance(term, candidate)
+            if distance <= 2:
+                similarity = SequenceMatcher(None, term, candidate).ratio()
+                candidates.append((distance, -similarity, candidate))
+        return min(candidates)[2] if candidates else term
 
     def query_terms(self, query):
         terms = []

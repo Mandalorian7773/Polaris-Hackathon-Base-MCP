@@ -162,4 +162,49 @@ class IntentSearchTests(unittest.TestCase):
         self.assertEqual(self.ids(query='spaceship engine'), [])
 
 
+class TaxonomyNormalizationTests(unittest.TestCase):
+    def setUp(self):
+        self.catalog = Catalog([
+            product('201', 1000, 4, 2, name='Everyday sneaker',
+                    product_type='Sneakers', category='Shoes'),
+            product('202', 1200, 4, 2, name='Tailored blazer',
+                    product_type='Blazer'),
+            product('203', 900, 4, 2, name='Straight trousers',
+                    product_type='Trousers', category='Garment Lower body'),
+            product('204', 500, 4, 2, name='Small earring',
+                    product_type='Earring', category='Accessories'),
+            product('205', 700, 4, 2, name='Dragon outfit',
+                    product_type='Costumes', category='Garment Full body'),
+            product('206', 1500, 4, 2, name='Casual midi',
+                    product_type='Dress', category='Garment Full body'),
+            product('207', 2000, 4, 2, name='Winter layer',
+                    product_type='Coat'),
+            product('208', 800, 4, 2, name='Formal button-up',
+                    product_type='Shirt'),
+        ])
+
+    def ids(self, query):
+        return [item['id'] for item in self.catalog.search(
+            {'query': query, 'limit': 10})['results']]
+
+    def test_taxonomy_only_typo_correction(self):
+        self.assertEqual(self.ids('snikers'), ['201'])
+        self.assertEqual(self.ids('blaser'), ['202'])
+        self.assertEqual(self.ids('trouzers'), ['203'])
+        self.assertEqual(self.ids('earings'), ['204'])
+
+    def test_catalog_inflections(self):
+        self.assertEqual(self.ids('costume'), ['205'])
+        self.assertEqual(self.ids('dresses'), ['206'])
+
+    def test_typo_correction_does_not_expand_unrelated_terms(self):
+        self.assertEqual(self.ids('dresser'), [])
+        self.assertEqual(self.ids('fishing sinkers'), [])
+        self.assertEqual(self.ids('dressage saddle'), [])
+
+    def test_generalized_shopping_intents(self):
+        self.assertEqual(self.ids('warm for a cold commute'), ['207'])
+        self.assertEqual(self.ids('outfit for an interview'), ['202', '208', '203'])
+
+
 if __name__ == '__main__': unittest.main()

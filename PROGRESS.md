@@ -1133,3 +1133,82 @@ passed against the integrated source. The protocol acceptance concurrency probe
 completed in 0.447 s. Catalog SHA-256 remained
 `05b6aa5e8e8c1c8c997d584f8288e432862454f8820531e13473443e83c8f073`.
 These are local measurements, not an official benchmark score.
+
+---
+
+## Phase 10 — Production-path planner integration (2026-10-21)
+
+Goal: diagnose the merged full-catalog architecture after the official run stopped
+after 40 cases, then improve general recall without weakening validity or abstention.
+The checked-in 104-case artifact was stale (`9e63e29`), so all baselines below were
+rerun from local `main` at `c54ddcf`.
+
+### Changes
+
+- The authoritative `ShoppingPlan` now supplies primary/mixed/accessory roles and
+  per-item budgets to the production precision planner. Precision parsing still
+  supplies catalog facets and scores each primary intent.
+- BM25F is now a selective fallback only when a precision intent is empty or misses
+  a catalog-grounded product anchor. Every fallback requirement must resolve to a
+  reviewed catalog target (apart from harmless query glue), and explicit-filter
+  requests do not fall back.
+- An explicit filter only overrides prose on the same facet. A category filter no
+  longer erases a conflicting product-type requirement, so `Stationery + dress`
+  correctly returns an empty page.
+- Added four full-catalog regression tests. They assert that the size-selected
+  production lane is active and cover synonym/typo/task fallback, mixed intent
+  recall, complementary splitting and budgets, and cross-taxonomy conflict.
+
+### Teammate 104-case evaluator
+
+| Metric | `c54ddcf` before | After |
+| --- | ---: | ---: |
+| Functional points / 95 | 79.152 | **87.845** |
+| Local estimate / 100 | 79.15 | **92.84** |
+| Validity | 1.0000 | **1.0000** |
+| Ranking mean | 0.7787 | **0.8578** |
+| Unusual mean | 0.5099 | **0.7319** |
+| Irrelevant mean / false-positive rate | 0.9167 / 0.0833 | **1.0000 / 0.0000** |
+| Mixed mean / coverage | 0.8753 / 0.8750 | **0.9795 / 1.0000** |
+| Complement mean / recommendation quality | 0.6962 / 0.7069 | **0.9429 / 0.9429** |
+| Dev / held-out functional points | 81.105 / 75.357 | **87.579 / 88.256** |
+| Cases with failures | 8 | **0** |
+| MCP performance p95 / correctness | 56.34 ms / 1.0000 | **31.96 ms / 1.0000** |
+
+Focused case scores: `syn-06`, `typo-08`, `vague-06`, `vague-09`, `irr-12`,
+`mix-04`, `rec-05`, and `rec-07` moved from 0 to **1.0**. `vague-08` moved
+0 → **0.2201** (one relevant hair accessory rather than an empty page). `rec-09`
+moved 0.3332 → **0.4286**; its primary quality improved, but this remains the
+weakest recommendation case.
+
+### Regression gates
+
+| Gate | Before | After |
+| --- | ---: | ---: |
+| Complete unit suite | 236/236 | **240/240** |
+| Original 56: ranking | 0.9644 | **0.9644** |
+| Original 56: mixed / irrelevant / contract / invalid | 1.0 each | **1.0 each** |
+| Original 56: recommendations | 0.9781 | **0.9781** |
+| Original 56: unusual | 0.9421 | **0.9468** |
+| Original 56: development / held out | 0.9946 / 0.9098 | **0.9954 / 0.9098** |
+| Original 56: startup / peak RSS | 5.97 s / 935.94 MB | **5.74 s / 919.77 MB** |
+| Research development score / FPR | 0.6179 / 0.0000 | **0.6179 / 0.0000** |
+| Research held-out score / FPR | 0.6316 / 0.2500 | **0.6842 / 0.2500** |
+| 300-call in-process correctness / p95 | 1.0000 / 7.478 ms | **1.0000 / 9.323 ms** |
+| Managed MCP bench correctness / pooled p95 | — | **1.0000 / 31.26 ms** |
+| Smoke test | pass | **pass** |
+
+The 300-call p95 changed by 1.845 ms in absolute terms and remains far below the
+200 ms full-credit boundary; the independent MCP bench was also well below it.
+
+### Rejected attempt and retained limitation
+
+The first candidate routed every complementary query through BM25F. It cleared the
+104-case failures but regressed the original 56-case mixed score 1.0000 → 0.9134 and
+recommendations 0.9781 → 0.9218, so that broad routing was rejected. The accepted
+version falls back only for incomplete, fully grounded precision intents.
+
+The duplicate text index was retained. It is no longer dead startup/RSS cost: the
+accepted production path uses it for guarded recall. Removing either index would
+require replacing behavior exercised by the new full-catalog tests, so no
+behavior-preserving removal was available in this phase.

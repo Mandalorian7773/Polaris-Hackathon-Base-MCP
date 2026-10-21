@@ -68,9 +68,9 @@ EXPLICIT_COMPLEMENT_RE = re.compile(
 )
 PRECISION_STOP_WORDS = frozenset({
     'a', 'an', 'and', 'any', 'are', 'at', 'be', 'by', 'each', 'find', 'for',
-    'from', 'give', 'i', 'in', 'is', 'it', 'looking', 'me', 'my', 'of', 'on',
-    'or', 'please', 'show', 'some', 'something', 'that', 'the', 'to', 'want',
-    'with', 'would',
+    'from', 'give', 'i', 'in', 'is', 'it', 'keep', 'looking', 'me', 'my', 'of',
+    'on', 'or', 'out', 'please', 'show', 'some', 'something', 'that', 'the',
+    'to', 'want', 'with', 'would',
 })
 PRECISION_QUERY_NOISE = frozenset({
     'below', 'budget', 'costing', 'inr', 'less', 'maximum', 'price', 'rupee',
@@ -582,6 +582,7 @@ class Catalog:
             'men': ('Menswear',),
             'mens': ('Menswear',),
             'man': ('Menswear',),
+            'ladies': ('Ladieswear', 'Ladies Accessories'),
             'women': ('Ladieswear', 'Ladies Accessories', 'Divided',
                       'Lingeries/Tights'),
             'womens': ('Ladieswear', 'Ladies Accessories', 'Divided',
@@ -779,6 +780,38 @@ class Catalog:
                 complement = replace(
                     complement, audiences=next(iter(primary_audiences)))
         return PrecisionPlan(parsed_parts, complement)
+
+    def precision_plan_for_shopping(self, plan: ShoppingPlan) -> PrecisionPlan:
+        """Translate the authoritative shopping split into precision intents.
+
+        The shopping planner owns mixed/complementary roles and per-item budgets.
+        Parsing the whole raw query again made production treat requested
+        accessories as primaries and made conjunction context contaminate otherwise
+        valid intents. Precision parsing still supplies catalog facets and scoring
+        text, but no longer second-guesses that structure.
+        """
+        primary = []
+        for item in plan.primary:
+            intent = self._parse_precision_intent(item.text)
+            primary.append(replace(
+                intent,
+                min_price=(
+                    intent.min_price if intent.min_price is not None
+                    else item.budget.min_price),
+                max_price=(
+                    intent.max_price if intent.max_price is not None
+                    else item.budget.max_price),
+            ))
+        shared_audiences = {
+            intent.audiences for intent in primary if intent.audiences}
+        if len(primary) > 1 and len(shared_audiences) == 1:
+            audience = shared_audiences.pop()
+            primary = [
+                intent if intent.audiences else
+                replace(intent, audiences=audience)
+                for intent in primary
+            ]
+        return PrecisionPlan(tuple(primary))
 
     @classmethod
     def load(cls, path: str | Path) -> 'Catalog':
@@ -1097,11 +1130,10 @@ class Catalog:
                 continue
             matching = self._precision_facet_union(field_name, values)
             narrowed = result.intersection(matching)
-            explicit_taxonomy = {'product_type', 'category'}.intersection(
-                explicit_filters)
-            can_override = field_name in explicit_filters or (
-                field_name in {'product_type', 'category'} and
-                bool(explicit_taxonomy))
+            # An explicit value overrides prose for the *same* facet. A category
+            # filter does not erase a product-type requirement (or vice versa):
+            # ``category=Stationery`` plus ``dress`` has no relevant intersection.
+            can_override = field_name in explicit_filters
             if not narrowed and can_override:
                 ignored.add(field_name)
                 if (field_name in {'product_type', 'category'} and
@@ -1252,14 +1284,21 @@ class Catalog:
             if not added:
                 return merged
 
-    def _precision_relevance_page(
-            self, request: Request, plan: PrecisionPlan) -> list[int]:
+    def _precision_score_sets(
+            self, request: Request,
+            plan: PrecisionPlan) -> list[dict[int, float]]:
         allowed = set(self._candidates(request.filters))
-        score_sets = [
+        return [
             self._precision_intent_scores(
                 intent, allowed, request.filters)
             for intent in plan.primary
         ]
+
+    def _precision_relevance_page(
+            self, request: Request, plan: PrecisionPlan,
+            score_sets: Sequence[dict[int, float]] | None = None) -> list[int]:
+        if score_sets is None:
+            score_sets = self._precision_score_sets(request, plan)
         candidates = set().union(
             *(set(scores) for scores in score_sets))
         if not candidates:
@@ -1273,6 +1312,27 @@ class Catalog:
                 key=_order_key(
                     self.index, request.sort_by, request.descending))
         return ordered[request.offset:request.need]
+
+    def _safe_bm25f_fallback(self, plan: ShoppingPlan) -> bool:
+        """Allow recall fallback only when every intent is catalog-grounded.
+
+        BM25F deliberately has broader recall than the precision lane. Requiring
+        each requirement to resolve to a reviewed target (apart from harmless query
+        glue) prevents anchored near-domain requests such as software for sneaker
+        bots from becoming product searches merely because one token looks valid.
+        """
+        for intent in plan.primary:
+            planned = self.planner.plan(intent.text)
+            if planned.is_empty:
+                return False
+            for requirement in planned.requirements:
+                if requirement.targets:
+                    continue
+                if all(term in PRECISION_STOP_WORDS
+                       for term, _weight in requirement.terms):
+                    continue
+                return False
+        return True
 
     def _intent_ranking(self, request: Request, intent: ItemIntent
                         ) -> list[tuple[int, float]]:
@@ -1406,10 +1466,26 @@ class Catalog:
         if not request.query.strip():
             positions = self._recheck(self._filtered_page(request), request.filters)
         elif self.use_precision_ranking:
-            precision_plan = self.precision_plan(request.query)
-            positions = self._precision_relevance_page(
-                request, precision_plan)
-            positions = self._recheck(positions, request.filters)
+            precision_plan = self.precision_plan_for_shopping(plan)
+            score_sets = self._precision_score_sets(request, precision_plan)
+            needs_bm25f = (
+                any(not scores for scores in score_sets) or
+                any(
+                    self.planner.plan(item.text).has_anchor and
+                    not (intent.product_types or intent.categories)
+                    for item, intent in zip(plan.primary,
+                                            precision_plan.primary)
+                )
+            )
+            if (needs_bm25f and not request.filters and
+                    self._safe_bm25f_fallback(plan)):
+                positions, origin = self._relevance_page(request, plan)
+                positions = self._recheck_intents(
+                    positions, origin, request, plan)
+            else:
+                positions = self._precision_relevance_page(
+                    request, precision_plan, score_sets)
+                positions = self._recheck(positions, request.filters)
         else:
             positions, origin = self._relevance_page(request, plan)
             positions = self._recheck_intents(

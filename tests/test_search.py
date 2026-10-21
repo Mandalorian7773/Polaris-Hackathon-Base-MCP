@@ -1,6 +1,9 @@
 import unittest
+from pathlib import Path
 from jsonschema import Draft202012Validator
 from search import Catalog, OUTPUT_SCHEMA
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def product(id, price, rating, count, color='Black', name='Cotton top',
@@ -747,6 +750,94 @@ class IntegratedTaxonomyNormalizationTests(unittest.TestCase):
         self.assertEqual(self.ids('warm for a cold commute'), ['207'])
         self.assertEqual(
             self.ids('outfit for an interview'), ['202', '208', '203'])
+
+
+class FullCatalogProductionPathTests(unittest.TestCase):
+    """Regressions must exercise the size-selected production retrieval lane."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.catalog = Catalog.load(ROOT / 'data/products.json')
+        if not cls.catalog.use_precision_ranking:
+            raise AssertionError('full catalog did not select production ranking')
+
+    @classmethod
+    def products_for(cls, output, key='results'):
+        return [
+            cls.catalog.products[cls.catalog.position_of[item['id']]]
+            for item in output[key]
+        ]
+
+    def test_grounded_bm25f_fallback_covers_synonyms_typos_and_tasks(self):
+        checks = (
+            ('swimming costume for women',
+             lambda product: product['product_type'] == 'Swimsuit'),
+            ('hoddie for men',
+             lambda product: product['product_type'] == 'Hoodie'
+             and product['audience'] == 'Menswear'),
+            ('a gift for a newborn baby',
+             lambda product: product['audience'] == 'Baby Sizes 50-98'),
+            ('something to keep my hair out of my face',
+             lambda product: product['product_type'].startswith('Hair')),
+            ('what should I wear to a wedding',
+             lambda product: product['product_type'] in {
+                 'Dress', 'Blazer', 'Jumpsuit/Playsuit'}),
+        )
+        for query, relevant in checks:
+            with self.subTest(query=query):
+                rows = self.products_for(
+                    self.catalog.search({'query': query, 'limit': 10}))
+                self.assertTrue(rows)
+                self.assertTrue(any(relevant(product) for product in rows))
+
+    def test_mixed_choice_uses_rich_recall_only_for_missing_intent(self):
+        rows = self.products_for(self.catalog.search({
+            'query': 'sunglasses or a hat for the beach',
+            'limit': 10,
+        }))
+        types = {product['product_type'] for product in rows}
+        self.assertIn('Sunglasses', types)
+        self.assertTrue(types.intersection({
+            'Hat/beanie', 'Hat/brim', 'Cap/peaked', 'Cap', 'Straw hat',
+            'Bucket hat', 'Felt hat', 'Beanie',
+        }))
+
+    def test_complement_split_and_per_item_budgets_reach_production(self):
+        output = self.catalog.search({
+            'query': 'dress under INR 2000 with a matching bag under INR 1000',
+            'include_recommendations': True,
+            'limit': 10,
+        })
+        primary = self.products_for(output)
+        recommendations = self.products_for(output, 'recommendations')
+        self.assertTrue(primary)
+        self.assertTrue(recommendations)
+        self.assertTrue(all(product['product_type'] == 'Dress'
+                            and product['price']['amount'] <= 2000
+                            for product in primary))
+        self.assertTrue(all(product['category'] == 'Bags'
+                            and product['price']['amount'] <= 1000
+                            for product in recommendations))
+
+        socks = self.catalog.search({
+            'query': 'sneakers with socks to go with them',
+            'include_recommendations': True,
+            'limit': 10,
+        })
+        self.assertTrue(all(product['product_type'] == 'Sneakers'
+                            for product in self.products_for(socks)))
+        self.assertTrue(all(product['product_type'] == 'Socks'
+                            for product in self.products_for(
+                                socks, 'recommendations')))
+
+    def test_cross_taxonomy_filter_does_not_erase_query_relevance(self):
+        self.assertEqual(
+            self.catalog.search({
+                'query': 'dress',
+                'filters': {'category': 'Stationery'},
+            }),
+            {'results': [], 'recommendations': []},
+        )
 
 
 if __name__ == '__main__': unittest.main()

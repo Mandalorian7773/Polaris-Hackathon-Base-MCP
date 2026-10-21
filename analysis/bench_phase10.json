@@ -1,0 +1,73 @@
+{
+  "generated_at": "2026-10-21T20:58:07+0530",
+  "python": "3.14.8",
+  "bench": {
+    "url": "http://127.0.0.1:8000/mcp",
+    "pool_size": 50,
+    "warmup_calls": 20,
+    "call_deadline_s": 10.0,
+    "workloads": {
+      "concurrency_1": {
+        "concurrency": 1,
+        "calls": 100,
+        "errors": 0,
+        "correct_response_rate": 1.0,
+        "min_ms": 6.19,
+        "max_ms": 11.32,
+        "mean_ms": 7.1,
+        "p50_ms": 6.59,
+        "p90_ms": 9.3,
+        "p95_ms": 9.73,
+        "p99_ms": 11.04,
+        "sum_service_time_s": 0.71,
+        "failure_notes": []
+      },
+      "concurrency_5": {
+        "concurrency": 5,
+        "calls": 100,
+        "errors": 0,
+        "correct_response_rate": 1.0,
+        "min_ms": 12.11,
+        "max_ms": 34.95,
+        "mean_ms": 23.75,
+        "p50_ms": 22.58,
+        "p90_ms": 31.26,
+        "p95_ms": 33.36,
+        "p99_ms": 34.39,
+        "sum_service_time_s": 2.375,
+        "failure_notes": []
+      }
+    },
+    "pooled": {
+      "concurrency": 0,
+      "calls": 200,
+      "errors": 0,
+      "correct_response_rate": 1.0,
+      "min_ms": 6.19,
+      "max_ms": 34.95,
+      "mean_ms": 15.42,
+      "p50_ms": 11.32,
+      "p90_ms": 27.47,
+      "p95_ms": 31.26,
+      "p99_ms": 34.37,
+      "sum_service_time_s": 3.084,
+      "failure_notes": []
+    },
+    "distinct_pages_checked": 50
+  },
+  "server": {
+    "managed": true,
+    "startup_seconds": 5.54,
+    "products": 105126,
+    "rss_mb_after_startup": 0.0,
+    "rss_mb_after_bench": 0.0,
+    "peak_rss_mb": 0.0,
+    "server_log": "/Users/adityajagrani/Desktop/MCPSearchHackathon/analysis/bench_server.log"
+  },
+  "smoke_test": {
+    "passed": true,
+    "seconds": 0.63,
+    "stdout": "PASS: MCP initialization, exact schemas, structured JSON responses, search, and validation",
+    "stderr": ""
+  }
+}

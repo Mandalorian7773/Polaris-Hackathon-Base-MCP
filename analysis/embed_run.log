@@ -1,6 +1,0 @@
-loading catalog from /home/prvsharya/projects/polaris/data/products.json ...
-105126 documents, mean 241 characters
-model ready in 0.2s
-  10240/105126  62 docs/s
-  20480/105126  51 docs/s
-  30720/105126  51 docs/s

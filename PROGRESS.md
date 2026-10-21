@@ -255,3 +255,118 @@ columns, and ascending value arrays.
   mixed-choice splitting, or calibrated abstention.
 - Text-query latency (~40 ms in process) is not in the scored performance pool but
   sets the floor for richer ranking.
+
+---
+
+## Phase 3 — Honest local evaluation (2026-10-21)
+
+Goal: build the measuring instrument before tuning anything. No change to `search.py`
+or `server.py` in this phase, so the numbers below are the phase 2 system scored for
+the first time.
+
+### Added
+
+| Path | Purpose |
+| --- | --- |
+| `scripts/build_cases.py` | Reviewable Python source of the case set; writes `eval/cases.jsonl` |
+| `eval/cases.jsonl` | **104 cases**, 72 dev / 32 held out (31 %) |
+| `scripts/evalkit.py` | Selectors, rubric grading, nDCG, case/judgment loading |
+| `scripts/label.py` | Interactive 0–3 labelling of pooled candidates → `eval/judgments.jsonl` |
+| `scripts/evaluate.py` | Runs every case over `/mcp`, scores it, writes `eval/runs/<ts>_<sha>.json` |
+
+### Case set
+
+| Category | Cases | Held out | Scored area |
+| --- | --- | --- | --- |
+| `exact` | 10 | 3 | ranking |
+| `synonym` | 8 | 2 | ranking |
+| `typo` | 8 | 3 | ranking |
+| `vague` | 10 | 4 | unusual |
+| `irrelevant` | 12 | 4 | irrelevant (expect empty) |
+| `mixed` | 12 | 4 | mixed choices |
+| `complement` | 10 | 3 | recommendations |
+| `filter_sort` | 10 | 3 | validity (exact page) |
+| `pagination` | 6 | 2 | validity (probes) |
+| `invalid` | 18 | 4 | validity (expect MCP error) |
+
+Every facet value used in a case exists in the catalog. Cases encode hard constraints
+stated in prose (`a red dress and black heels under INR 3000 each`), the
+`Dog Wear` / `Dog wear` collision, impossible budgets (cheapest item is INR 199,
+dearest INR 8,999), a prompt-injection query, and a three-choice mixed query.
+
+### How grading works, and what it is not
+
+A case carries an ordered **rubric** of `{grade, selector}` tiers; a product takes the
+grade of the first tier it matches, 0 if none, and 0 if it violates the case's hard
+constraints. Metrics follow the brief exactly: `DCG = Σ (2^g − 1) / log2(rank + 1)`
+normalised against a fixed ceiling of ten grade-3 primary slots and five
+recommendation slots, mixed coverage = fraction of choices with a grade-≥2 result,
+recommendation quality = nDCG@5 where a recommendation only scores if it references a
+current-page primary graded ≥ 2.
+
+**This is a proxy, not the organizer's judgment.** The rubric is attribute-derived, so
+it rewards a system that finds the right `product_type` / `colour` / `pattern` and
+cannot see whether a specific garment actually suits the request. Bedrock will.
+`scripts/label.py` exists so human grades in `eval/judgments.jsonl` override the
+rubric per (case, product); that file is **empty right now** — the 1–2 hours of
+labelling is the outstanding manual job, and until it is done the weighted total
+should be read as "did retrieval find the right kind of product", not "would a shopper
+be happy".
+
+`scripts/evaluate.py` cross-checks exact pages with `reference_page`, a brute-force
+implementation written from the brief and deliberately independent of `search.py`.
+
+### Baseline score of the phase 2 system
+
+Local weighted estimate: **52.26 / 100** (functional 52.26 / 95, performance 0 / 5).
+
+| Area | Max | Mean score | Points | Dev | Held out |
+| --- | --- | --- | --- | --- | --- |
+| Validity and constraints | 25 | 1.0000 | **25.000** | 1.0000 | 1.0000 |
+| Ranking relevance | 30 | 0.5378 | **16.135** | 0.5150 | 0.5891 |
+| Unusual (meaningful) | 7.5 | 0.0000 | **0.000** | 0.0000 | 0.0000 |
+| Irrelevant (abstention) | 7.5 | 1.0000 | **7.500** | 1.0000 | 1.0000 |
+| Mixed choices | 15 | 0.1747 | **2.620** | 0.0537 | 0.4167 |
+| Complementary recommendations | 10 | 0.1000 | **1.000** | 0.1429 | 0.0000 |
+| Performance | 5 | — | **0.000** | — | — |
+
+Diagnostics: mean nDCG@10 **0.2951**, abstention **1.0000**, false-positive rate
+**0.0000**, mixed coverage **0.1528**, recommendation quality@5 **0.1000**, mean
+validity **0.9087**, contract pass rate (all four checks) **0.6346**.
+
+Latency during the run: concurrency 1 p50 11.7 ms / p95 16.3 ms, concurrency 5 p50
+47.0 ms / p95 63.6 ms, pooled p95 **60.1 ms**, 0 errors. Startup 3.23 s, RSS 803 MB,
+peak 810 MB. Per-case round trip p50 46.9 ms, p95 54.1 ms.
+
+### What the baseline score actually says
+
+1. **Validity is already full marks locally** (25/25 across all 34 validity cases:
+   18 invalid calls all error, 16 exact-page and pagination cases all match the
+   independent reference). The `contract_pass_rate` of 0.63 is lower only because it
+   counts *every* case including the semantic ones, where "expected results, got an
+   empty page" fails the presence check.
+2. **Abstention is 7.5/7.5 for the wrong reason.** Strict lexical AND matching returns
+   nothing for almost any multi-word natural query, so it abstains on nonsense *and*
+   on 10 of 10 meaningful unusual queries, all 10 complement cases, and 9 of 12 mixed
+   queries. This score is fragile: phase 4 will raise recall and abstention must be
+   re-calibrated, not assumed.
+3. **Unusual queries score exactly 0.** The catalog has no occasion vocabulary at all
+   — `party` appears in 5 descriptions, `wedding` in 1, `office`, `sunday` and `lazy`
+   in none — so "something comfortable for a lazy Sunday" has no lexical evidence and
+   must be answered by reasoning over `product_type` / `section` / `pattern`.
+4. **Product names are internal style codes**, not shopping text: `SWEATSHIRT OC`,
+   `tvp`, `Jerry jogger bottoms`, `Mimmi sneaker`. `sneakers` appears in 13 names but
+   1,590 products have `product_type = Sneakers`, and `jeans` appears in 30 names
+   while 2,870 Trousers have `pattern = Denim`. The baseline's product-name boost is
+   therefore close to useless, and field weighting must favour `product_type`.
+5. Ranking already gets 0.54 of a *fixed grade-3 ceiling*, which is healthier than it
+   looks: single-word attribute queries (`sunglasses`, `jeans`, `black dress`) work
+   because the attribute text is matched; everything multi-word fails.
+
+### Reproduce
+
+```sh
+.venv/bin/python scripts/build_cases.py
+.venv/bin/python scripts/evaluate.py --manage
+.venv/bin/python scripts/label.py --manage --skip-labelled   # the manual job
+```

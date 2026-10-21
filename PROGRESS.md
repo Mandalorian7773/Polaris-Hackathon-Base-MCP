@@ -681,3 +681,132 @@ exactly the kind of change that deserves to be visible.
    left, and the area most exposed to my having written both the cases and the
    lexicon.
 3. `eval/judgments.jsonl` is still empty: every grade is rubric-derived.
+
+---
+
+## Phase 6 — Complementary recommendations (2026-10-21)
+
+Goal: implement `recommend`, which has been a stub since the starter.
+
+Local weighted estimate: **93.11 → 97.15 / 100**. Dev **92.24**, held out **92.45**.
+Recommendation quality@5 **0.1000 → 0.9079**, complement area **5.214 → 9.254 / 10**.
+
+### Added
+
+| Path | Purpose |
+| --- | --- |
+| `recommend.py` | Complement map loading, candidate scanning, scoring, reason text |
+| `data/complements.json` | **Reviewable** complement map, role groups, neutrals, audience families |
+| `tests/test_recommend.py` | 29 cases: contract invariants, substitutes, constraints, internals |
+| `scripts/check_lexicon.py` (extended) | Validates complements too, and rejects substitutes |
+
+### The actual problem: refusing to return substitutes
+
+Similarity returns a second dress for a dress, and the brief is explicit that
+substitutes earn nothing. So the candidate *type* is chosen first from a reviewed map
+(116 types mapped, 516 pairings), and anything filling the same wardrobe slot as the
+primary is excluded outright by a `roles` table of 24 groups. 14 types are declared to
+have no useful complement at all (`Dog Wear`, `Zipper head`, `Sewing kit`, …) and
+return an empty list rather than something forced.
+
+Candidates are scanned per type in a precomputed **quality order** (rating, then review
+count, then ID), so plausible items are considered first instead of walking an
+11,000-product type. Scoring combines complement-type rank, colour compatibility
+(same colour, or one of 12 catalog neutrals), shared pattern, shared audience, and
+rating with review count.
+
+### What the validator caught
+
+Extending `scripts/check_lexicon.py` to the complement map surfaced **33 problems** on
+the first run. Two were real errors in my map; the rest showed my **role groups were
+too coarse**, treating genuine complements as substitutes:
+
+| Flagged pairing | Verdict |
+| --- | --- |
+| `necklace` ↔ `earring` ↔ `bracelet` ↔ `ring` | **Role too coarse.** Different body slots, worn together. Split `jewellery` into `neck` / `ears` / `wrist` / `finger`. |
+| `cardigan` ↔ `t-shirt` / `blouse` / `vest top` | **Role too coarse.** Layering, not substitution. Split `upper` into `upper_base` / `upper_layer`. |
+| `skirt` ↔ `leggings/tights` | **Role too coarse.** Tights under a skirt. New `tights` role. |
+| `robe` ↔ `pyjama set` / `night gown` | **Role too coarse.** A robe goes over pyjamas. Split `sleep` into `sleepwear` / `robe`. |
+| `underdress` → `dress` | **Role too coarse.** Worn underneath. New `underlayer` role. |
+| `watch` ↔ `bracelet` | **Genuine substitute** — same wrist. Pairing removed. |
+| `nipple covers` → `bra` | **Genuine substitute** — worn instead of one. Pairing removed. |
+| `no_complement: Interior textile` | **Real error** — that is a *category*, not a product type. Removed. |
+
+The map now passes: every target exists in the catalog and no complement is a
+substitute, checked both by the script and by a unit test.
+
+### One design decision worth recording
+
+The brief says explicit filters constrain the primary only, but "unqualified global
+requirements such as an audience apply to recommendations too". Applying `audience`
+as an **exact** value match broke the obvious case: a ladies' handbag is filed under
+`Ladies Accessories`, not `Ladieswear`, so a `Ladieswear` filter threw away every bag
+for a `Ladieswear` dress. Audience now carries over as a **family**
+(ladies / men / divided / kids / baby / sport), which still blocks menswear for a
+ladies' dress and babywear for an adult, but keeps the accessory sections reachable.
+
+Split of what carries over to recommendations:
+
+| Carries over | Does not |
+| --- | --- |
+| `audience` (by family), `min_price`, `max_price`, `min_rating`, `min_review_count` | `category`, `product_type`, `color`, `pattern`, `section` |
+
+An accessory budget stated in the query (`a dress under INR 2000 with a bag under
+INR 1000`) replaces an inherited one.
+
+When the shopper names the accessory, all five slots are filled with that type rather
+than spread for variety they did not ask for; when they do not, the ranked complement
+list spreads across types (a dress gets a bag, heeled sandals, a blazer).
+
+### Reasons
+
+Built only from catalog attributes, 1–300 characters, never invented:
+
+> *Black bag to wear with the black dress; the same colour. Rated 5.0 from 4 reviews.*
+> *Beige bag to wear with the black dress; beige is a neutral. Rated 5.0 from 5 reviews.*
+
+Reasons are not machine-graded, so they exist for the reader, not the score.
+
+### Score movement
+
+| Area | Max | Phase 4 | Phase 5 | Phase 6 | Dev | Held out |
+| --- | --- | --- | --- | --- | --- | --- |
+| Validity and constraints | 25 | 25.000 | 25.000 | **25.000** | 1.0000 | 1.0000 |
+| Ranking relevance | 30 | 28.864 | 28.864 | **28.864** | 0.9453 | 1.0000 |
+| Unusual (meaningful) | 7.5 | 6.000 | 6.779 | **6.779** | 1.0000 | 0.7598 |
+| Irrelevant (abstention) | 7.5 | 6.875 | 7.500 | **7.500** | 1.0000 | 1.0000 |
+| Mixed choices | 15 | 11.631 | 14.752 | **14.752** | 0.9752 | 1.0000 |
+| Complementary recommendations | 10 | 2.299 | 5.214 | **9.254** | 0.9253 | 0.9255 |
+| Performance | 5 | 0.000 | 5.000 | **5.000** | — | — |
+| **Total (local estimate)** | 100 | 80.669 | 93.109 | **97.149** | 97.24 | 97.45 |
+
+Recommendation quality@5: **0.9079** overall, 0.9322 dev, 0.8510 held out. Zero failing
+cases; contract pass rate 1.0000.
+
+### Cost
+
+| Metric | Phase 5 | Phase 6 |
+| --- | --- | --- |
+| Startup to healthy `/healthz` | 6.83 s | 6.83 s |
+| RSS after startup | 1,103 MB | 1,103 MB |
+| Pooled empty-query p95 | 53.5 ms | 58.4 ms |
+| Concurrency 1 p95 | 16.4 ms | 17.0 ms |
+| Concurrency 5 p95 | 58.9 ms | 62.3 ms |
+| Tests | 146 | **176** |
+| `smoke_test.py` | PASS | PASS |
+
+The quality order and category expansion are built once at load and cost nothing
+measurable at startup; the empty-query pool never requests recommendations, so the
+p95 movement here is run-to-run noise rather than a real regression.
+
+### Still open after phase 6
+
+1. **`eval/judgments.jsonl` is still empty.** Every grade is rubric-derived, and the
+   complement rubric is the most generous of them: it awards grade 3 for being a
+   complementary *type*, where Bedrock will judge whether that specific bag suits that
+   specific dress. Expect the real complement score to be lower than 9.25.
+2. `data/complements.json` is 516 judgements I made, not catalog facts. The roadmap
+   asks for a fashion-eye review and it has not had one.
+3. `unusual` held out (0.7598) against dev (1.0000) is still the widest split gap.
+4. Phases 7 (gated embeddings), 8 (optional LLM parser), 9 (acceptance, Docker,
+   `REPORT.md`) and 10 (deploy) remain.

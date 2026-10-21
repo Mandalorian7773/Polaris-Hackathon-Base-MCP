@@ -1,0 +1,1068 @@
+{
+  "_README": [
+    "Reviewed map from a product_type to the product_types that COMPLEMENT it, best",
+    "first. Every value must exist in the catalog; scripts/check_lexicon.py fails the",
+    "build otherwise.",
+    "",
+    "A complement is worn or carried WITH the item. A substitute is an alternative to",
+    "it, and substitutes earn nothing: a second dress is not an accessory for a dress.",
+    "The 'roles' table below groups types that fill the same slot, and anything in the",
+    "same role group as the primary is excluded even if a list names it by mistake.",
+    "",
+    "Review this with a fashion eye. If a pairing looks wrong, it is wrong - these are",
+    "judgements, not catalog facts."
+  ],
+  "roles": {
+    "bags": [
+      "Bag",
+      "Tote bag",
+      "Shoulder bag",
+      "Cross-body bag",
+      "Backpack",
+      "Weekend/Gym bag",
+      "Bumbag"
+    ],
+    "ears": [
+      "Earring",
+      "Earrings"
+    ],
+    "eyewear": [
+      "Sunglasses",
+      "Eyeglasses"
+    ],
+    "finger": [
+      "Ring"
+    ],
+    "full_body": [
+      "Dress",
+      "Jumpsuit/Playsuit",
+      "Dungarees",
+      "Garment Set",
+      "Costumes",
+      "Outdoor overall"
+    ],
+    "hair": [
+      "Hair/alice band",
+      "Hair clip",
+      "Hair string",
+      "Hair ties",
+      "Hairband",
+      "Headband",
+      "Alice band"
+    ],
+    "headwear": [
+      "Hat/beanie",
+      "Hat/brim",
+      "Cap/peaked",
+      "Cap",
+      "Straw hat",
+      "Bucket hat",
+      "Felt hat",
+      "Beanie"
+    ],
+    "legwear": [
+      "Socks",
+      "Leg warmers"
+    ],
+    "lower": [
+      "Trousers",
+      "Shorts",
+      "Skirt",
+      "Outdoor trousers"
+    ],
+    "neck": [
+      "Necklace"
+    ],
+    "outer": [
+      "Jacket",
+      "Coat",
+      "Blazer",
+      "Outdoor Waistcoat",
+      "Tailored Waistcoat"
+    ],
+    "robe": [
+      "Robe"
+    ],
+    "shoes": [
+      "Sneakers",
+      "Boots",
+      "Sandals",
+      "Heeled sandals",
+      "Heels",
+      "Pumps",
+      "Wedge",
+      "Ballerinas",
+      "Flat shoe",
+      "Flat shoes",
+      "Moccasins",
+      "Slippers",
+      "Flip flop",
+      "Other shoe",
+      "Bootie",
+      "Pre-walkers"
+    ],
+    "sleepwear": [
+      "Pyjama set",
+      "Pyjama bottom",
+      "Pyjama jumpsuit/playsuit",
+      "Night gown",
+      "Sleeping sack",
+      "Sleep Bag"
+    ],
+    "swim_bottom": [
+      "Swimwear bottom"
+    ],
+    "swim_top": [
+      "Bikini top",
+      "Swimwear top"
+    ],
+    "swim_whole": [
+      "Swimsuit",
+      "Swimwear set"
+    ],
+    "tights": [
+      "Leggings/Tights",
+      "Underwear Tights"
+    ],
+    "underlayer": [
+      "Underdress"
+    ],
+    "underwear_bottom": [
+      "Underwear bottom",
+      "Underwear body",
+      "Underwear set",
+      "Long John"
+    ],
+    "underwear_top": [
+      "Bra",
+      "Underwear corset",
+      "Kids Underwear top",
+      "Nipple covers",
+      "Bra extender"
+    ],
+    "upper_base": [
+      "T-shirt",
+      "Shirt",
+      "Blouse",
+      "Top",
+      "Vest top",
+      "Polo shirt",
+      "Bodysuit"
+    ],
+    "upper_layer": [
+      "Sweater",
+      "Hoodie",
+      "Cardigan"
+    ],
+    "wrist": [
+      "Bracelet",
+      "Watch"
+    ]
+  },
+  "complements": {
+    "Dress": [
+      "Bag",
+      "Heeled sandals",
+      "Necklace",
+      "Earring",
+      "Belt",
+      "Cardigan",
+      "Blazer",
+      "Scarf",
+      "Pumps"
+    ],
+    "Jumpsuit/Playsuit": [
+      "Bag",
+      "Belt",
+      "Heeled sandals",
+      "Necklace",
+      "Earring",
+      "Blazer",
+      "Cardigan"
+    ],
+    "Underdress": [
+      "Dress",
+      "Cardigan",
+      "Belt",
+      "Bag"
+    ],
+    "Dungarees": [
+      "T-shirt",
+      "Vest top",
+      "Sneakers",
+      "Cardigan",
+      "Cap/peaked"
+    ],
+    "Trousers": [
+      "Shirt",
+      "T-shirt",
+      "Belt",
+      "Sweater",
+      "Sneakers",
+      "Blazer",
+      "Boots",
+      "Socks",
+      "Blouse"
+    ],
+    "Outdoor trousers": [
+      "Jacket",
+      "Sweater",
+      "Boots",
+      "Gloves",
+      "Hat/beanie"
+    ],
+    "Shorts": [
+      "T-shirt",
+      "Vest top",
+      "Sandals",
+      "Sneakers",
+      "Cap/peaked",
+      "Sunglasses",
+      "Belt"
+    ],
+    "Skirt": [
+      "Blouse",
+      "Top",
+      "T-shirt",
+      "Belt",
+      "Boots",
+      "Pumps",
+      "Leggings/Tights",
+      "Cardigan"
+    ],
+    "Leggings/Tights": [
+      "Vest top",
+      "T-shirt",
+      "Sneakers",
+      "Hoodie",
+      "Skirt",
+      "Dress",
+      "Socks"
+    ],
+    "T-shirt": [
+      "Trousers",
+      "Shorts",
+      "Jacket",
+      "Sneakers",
+      "Cap/peaked",
+      "Belt",
+      "Skirt"
+    ],
+    "Shirt": [
+      "Trousers",
+      "Tie",
+      "Blazer",
+      "Belt",
+      "Tailored Waistcoat",
+      "Flat shoe",
+      "Braces"
+    ],
+    "Polo shirt": [
+      "Trousers",
+      "Shorts",
+      "Belt",
+      "Sneakers",
+      "Cap/peaked"
+    ],
+    "Blouse": [
+      "Skirt",
+      "Trousers",
+      "Blazer",
+      "Necklace",
+      "Earring",
+      "Pumps",
+      "Bag"
+    ],
+    "Top": [
+      "Trousers",
+      "Skirt",
+      "Shorts",
+      "Cardigan",
+      "Blazer",
+      "Bag",
+      "Necklace"
+    ],
+    "Vest top": [
+      "Trousers",
+      "Shorts",
+      "Skirt",
+      "Cardigan",
+      "Jacket",
+      "Leggings/Tights"
+    ],
+    "Sweater": [
+      "Trousers",
+      "Skirt",
+      "Scarf",
+      "Boots",
+      "Hat/beanie",
+      "Gloves",
+      "Jacket"
+    ],
+    "Hoodie": [
+      "Trousers",
+      "Shorts",
+      "Sneakers",
+      "Cap/peaked",
+      "Socks",
+      "Leggings/Tights"
+    ],
+    "Cardigan": [
+      "Vest top",
+      "T-shirt",
+      "Blouse",
+      "Trousers",
+      "Skirt",
+      "Dress"
+    ],
+    "Bodysuit": [
+      "Trousers",
+      "Skirt",
+      "Leggings/Tights",
+      "Cardigan",
+      "Belt"
+    ],
+    "Jacket": [
+      "T-shirt",
+      "Trousers",
+      "Scarf",
+      "Hat/beanie",
+      "Gloves",
+      "Sneakers",
+      "Sweater"
+    ],
+    "Coat": [
+      "Scarf",
+      "Gloves",
+      "Hat/beanie",
+      "Boots",
+      "Sweater",
+      "Umbrella"
+    ],
+    "Blazer": [
+      "Shirt",
+      "Blouse",
+      "Trousers",
+      "Skirt",
+      "Tie",
+      "Belt",
+      "Pumps"
+    ],
+    "Tailored Waistcoat": [
+      "Shirt",
+      "Trousers",
+      "Tie",
+      "Belt",
+      "Braces"
+    ],
+    "Outdoor Waistcoat": [
+      "Sweater",
+      "Shirt",
+      "Outdoor trousers",
+      "Hat/beanie",
+      "Gloves"
+    ],
+    "Sneakers": [
+      "Socks",
+      "Trousers",
+      "Shorts",
+      "T-shirt",
+      "Cap/peaked",
+      "Weekend/Gym bag"
+    ],
+    "Boots": [
+      "Socks",
+      "Trousers",
+      "Leggings/Tights",
+      "Scarf",
+      "Coat",
+      "Skirt"
+    ],
+    "Sandals": [
+      "Shorts",
+      "Dress",
+      "Sarong",
+      "Sunglasses",
+      "Straw hat",
+      "Bag"
+    ],
+    "Heeled sandals": [
+      "Dress",
+      "Skirt",
+      "Bag",
+      "Earring",
+      "Necklace"
+    ],
+    "Heels": [
+      "Dress",
+      "Skirt",
+      "Bag",
+      "Earring",
+      "Necklace"
+    ],
+    "Pumps": [
+      "Dress",
+      "Skirt",
+      "Trousers",
+      "Bag",
+      "Blazer"
+    ],
+    "Wedge": [
+      "Dress",
+      "Skirt",
+      "Bag",
+      "Sunglasses"
+    ],
+    "Ballerinas": [
+      "Dress",
+      "Skirt",
+      "Trousers",
+      "Socks",
+      "Bag"
+    ],
+    "Flat shoe": [
+      "Trousers",
+      "Skirt",
+      "Socks",
+      "Bag",
+      "Shirt"
+    ],
+    "Flat shoes": [
+      "Trousers",
+      "Skirt",
+      "Socks",
+      "Bag"
+    ],
+    "Moccasins": [
+      "Trousers",
+      "Socks",
+      "Shirt",
+      "Belt"
+    ],
+    "Other shoe": [
+      "Socks",
+      "Trousers",
+      "Skirt",
+      "Bag"
+    ],
+    "Flip flop": [
+      "Swimsuit",
+      "Bikini top",
+      "Sarong",
+      "Shorts",
+      "Sunglasses"
+    ],
+    "Slippers": [
+      "Pyjama set",
+      "Robe",
+      "Night gown",
+      "Socks"
+    ],
+    "Bootie": [
+      "Socks",
+      "Garment Set",
+      "Bodysuit"
+    ],
+    "Pre-walkers": [
+      "Socks",
+      "Garment Set",
+      "Bodysuit"
+    ],
+    "Bag": [
+      "Wallet",
+      "Sunglasses",
+      "Scarf",
+      "Belt",
+      "Mobile case",
+      "Keychain"
+    ],
+    "Tote bag": [
+      "Wallet",
+      "Sunglasses",
+      "Scarf",
+      "Keychain"
+    ],
+    "Shoulder bag": [
+      "Wallet",
+      "Sunglasses",
+      "Scarf",
+      "Belt"
+    ],
+    "Cross-body bag": [
+      "Wallet",
+      "Sunglasses",
+      "Keychain"
+    ],
+    "Backpack": [
+      "Wallet",
+      "Waterbottle",
+      "Cap/peaked",
+      "Sunglasses",
+      "Keychain"
+    ],
+    "Weekend/Gym bag": [
+      "Waterbottle",
+      "Sneakers",
+      "Socks",
+      "T-shirt"
+    ],
+    "Bumbag": [
+      "Wallet",
+      "Sunglasses",
+      "Cap/peaked"
+    ],
+    "Wallet": [
+      "Bag",
+      "Belt",
+      "Keychain",
+      "Mobile case"
+    ],
+    "Belt": [
+      "Trousers",
+      "Shirt",
+      "Dress",
+      "Skirt",
+      "Wallet",
+      "Shorts"
+    ],
+    "Scarf": [
+      "Hat/beanie",
+      "Gloves",
+      "Coat",
+      "Jacket",
+      "Sweater"
+    ],
+    "Gloves": [
+      "Scarf",
+      "Hat/beanie",
+      "Coat",
+      "Jacket"
+    ],
+    "Hat/beanie": [
+      "Scarf",
+      "Gloves",
+      "Coat",
+      "Jacket",
+      "Sweater"
+    ],
+    "Beanie": [
+      "Scarf",
+      "Gloves",
+      "Coat",
+      "Jacket"
+    ],
+    "Hat/brim": [
+      "Sunglasses",
+      "Dress",
+      "Sandals",
+      "Bag",
+      "Sarong"
+    ],
+    "Straw hat": [
+      "Sunglasses",
+      "Swimsuit",
+      "Sarong",
+      "Flip flop",
+      "Bag"
+    ],
+    "Cap/peaked": [
+      "T-shirt",
+      "Hoodie",
+      "Sneakers",
+      "Shorts",
+      "Sunglasses"
+    ],
+    "Cap": [
+      "T-shirt",
+      "Hoodie",
+      "Sneakers",
+      "Shorts"
+    ],
+    "Bucket hat": [
+      "T-shirt",
+      "Shorts",
+      "Sunglasses",
+      "Sneakers"
+    ],
+    "Felt hat": [
+      "Coat",
+      "Scarf",
+      "Gloves",
+      "Bag"
+    ],
+    "Umbrella": [
+      "Coat",
+      "Boots",
+      "Jacket",
+      "Hat/brim"
+    ],
+    "Sunglasses": [
+      "Hat/brim",
+      "Straw hat",
+      "Bag",
+      "Sarong",
+      "Swimsuit"
+    ],
+    "Eyeglasses": [
+      "Mobile case",
+      "Bag",
+      "Scarf"
+    ],
+    "Tie": [
+      "Shirt",
+      "Blazer",
+      "Belt",
+      "Tailored Waistcoat",
+      "Braces"
+    ],
+    "Braces": [
+      "Shirt",
+      "Trousers",
+      "Tie",
+      "Tailored Waistcoat"
+    ],
+    "Watch": [
+      "Belt",
+      "Wallet",
+      "Bag",
+      "Sunglasses"
+    ],
+    "Mobile case": [
+      "Bag",
+      "Wallet",
+      "Keychain"
+    ],
+    "Keychain": [
+      "Bag",
+      "Wallet"
+    ],
+    "Waterbottle": [
+      "Weekend/Gym bag",
+      "Backpack",
+      "Socks",
+      "T-shirt"
+    ],
+    "Other accessories": [
+      "Bag",
+      "Scarf",
+      "Belt",
+      "Sunglasses"
+    ],
+    "Accessories set": [
+      "Bag",
+      "Scarf",
+      "Sunglasses"
+    ],
+    "Necklace": [
+      "Earring",
+      "Bracelet",
+      "Ring",
+      "Dress",
+      "Blouse"
+    ],
+    "Earring": [
+      "Necklace",
+      "Bracelet",
+      "Ring",
+      "Dress",
+      "Blouse"
+    ],
+    "Earrings": [
+      "Necklace",
+      "Bracelet",
+      "Ring",
+      "Dress"
+    ],
+    "Bracelet": [
+      "Necklace",
+      "Earring",
+      "Ring"
+    ],
+    "Ring": [
+      "Necklace",
+      "Earring",
+      "Bracelet"
+    ],
+    "Hair/alice band": [
+      "Earring",
+      "Necklace",
+      "Scarf",
+      "Bag"
+    ],
+    "Hair clip": [
+      "Earring",
+      "Necklace",
+      "Scarf",
+      "Bag"
+    ],
+    "Hair string": [
+      "Earring",
+      "Necklace",
+      "Scarf"
+    ],
+    "Hair ties": [
+      "Earring",
+      "Necklace",
+      "Scarf"
+    ],
+    "Hairband": [
+      "Earring",
+      "Necklace",
+      "Scarf"
+    ],
+    "Headband": [
+      "Earring",
+      "Necklace",
+      "Scarf"
+    ],
+    "Alice band": [
+      "Earring",
+      "Necklace",
+      "Scarf"
+    ],
+    "Swimsuit": [
+      "Sarong",
+      "Flip flop",
+      "Sunglasses",
+      "Straw hat",
+      "Bag",
+      "Hat/brim"
+    ],
+    "Swimwear set": [
+      "Sarong",
+      "Flip flop",
+      "Sunglasses",
+      "Straw hat",
+      "Bag"
+    ],
+    "Bikini top": [
+      "Swimwear bottom",
+      "Sarong",
+      "Flip flop",
+      "Sunglasses",
+      "Straw hat"
+    ],
+    "Swimwear top": [
+      "Swimwear bottom",
+      "Sarong",
+      "Flip flop",
+      "Sunglasses"
+    ],
+    "Swimwear bottom": [
+      "Bikini top",
+      "Swimwear top",
+      "Sarong",
+      "Flip flop",
+      "Sunglasses"
+    ],
+    "Sarong": [
+      "Swimsuit",
+      "Bikini top",
+      "Flip flop",
+      "Straw hat",
+      "Sunglasses"
+    ],
+    "Socks": [
+      "Sneakers",
+      "Boots",
+      "Trousers",
+      "Shorts"
+    ],
+    "Leg warmers": [
+      "Boots",
+      "Leggings/Tights",
+      "Skirt"
+    ],
+    "Underwear Tights": [
+      "Skirt",
+      "Dress",
+      "Boots",
+      "Bra"
+    ],
+    "Bra": [
+      "Underwear bottom",
+      "Vest top",
+      "Leggings/Tights",
+      "Underwear Tights"
+    ],
+    "Underwear bottom": [
+      "Bra",
+      "Vest top",
+      "Underwear Tights"
+    ],
+    "Underwear body": [
+      "Trousers",
+      "Skirt",
+      "Cardigan"
+    ],
+    "Underwear corset": [
+      "Underwear bottom",
+      "Skirt",
+      "Trousers"
+    ],
+    "Underwear set": [
+      "Underwear Tights",
+      "Robe",
+      "Vest top"
+    ],
+    "Kids Underwear top": [
+      "Underwear bottom",
+      "Socks"
+    ],
+    "Long John": [
+      "Socks",
+      "Sweater",
+      "Outdoor trousers"
+    ],
+    "Nipple covers": [
+      "Vest top",
+      "Dress"
+    ],
+    "Pyjama set": [
+      "Slippers",
+      "Robe",
+      "Socks"
+    ],
+    "Pyjama bottom": [
+      "Vest top",
+      "T-shirt",
+      "Slippers",
+      "Robe",
+      "Socks"
+    ],
+    "Pyjama jumpsuit/playsuit": [
+      "Slippers",
+      "Socks",
+      "Robe"
+    ],
+    "Night gown": [
+      "Robe",
+      "Slippers",
+      "Socks"
+    ],
+    "Robe": [
+      "Pyjama set",
+      "Slippers",
+      "Socks",
+      "Towel"
+    ],
+    "Sleeping sack": [
+      "Socks",
+      "Bodysuit",
+      "Garment Set"
+    ],
+    "Sleep Bag": [
+      "Socks",
+      "Bodysuit",
+      "Garment Set"
+    ],
+    "Garment Set": [
+      "Socks",
+      "Hat/beanie",
+      "Bootie",
+      "Bodysuit"
+    ],
+    "Baby Bib": [
+      "Bodysuit",
+      "Garment Set",
+      "Socks"
+    ],
+    "Costumes": [
+      "Hat/beanie",
+      "Socks",
+      "Bag"
+    ],
+    "Soft Toys": [
+      "Garment Set",
+      "Bodysuit",
+      "Blanket"
+    ],
+    "Blanket": [
+      "Soft Toys",
+      "Garment Set",
+      "Socks"
+    ],
+    "Giftbox": [
+      "Necklace",
+      "Earring",
+      "Scarf",
+      "Wallet"
+    ],
+    "Towel": [
+      "Robe",
+      "Swimsuit",
+      "Slippers"
+    ],
+    "Fine cosmetics": [
+      "Bag",
+      "Mobile case",
+      "Hair clip"
+    ],
+    "Chem. cosmetics": [
+      "Towel",
+      "Bag"
+    ],
+    "Outdoor overall": [
+      "Gloves",
+      "Hat/beanie",
+      "Socks",
+      "Boots"
+    ]
+  },
+  "category_fallback": {
+    "Garment Upper body": [
+      "Trousers",
+      "Skirt",
+      "Belt",
+      "Sneakers",
+      "Scarf"
+    ],
+    "Garment Lower body": [
+      "T-shirt",
+      "Shirt",
+      "Belt",
+      "Sneakers",
+      "Socks"
+    ],
+    "Garment Full body": [
+      "Bag",
+      "Belt",
+      "Heeled sandals",
+      "Necklace",
+      "Cardigan"
+    ],
+    "Accessories": [
+      "Bag",
+      "Scarf",
+      "Belt",
+      "Sunglasses",
+      "Wallet"
+    ],
+    "Bags": [
+      "Wallet",
+      "Sunglasses",
+      "Scarf",
+      "Keychain"
+    ],
+    "Shoes": [
+      "Socks",
+      "Trousers",
+      "Bag",
+      "Skirt"
+    ],
+    "Swimwear": [
+      "Sarong",
+      "Flip flop",
+      "Sunglasses",
+      "Straw hat"
+    ],
+    "Socks & Tights": [
+      "Sneakers",
+      "Boots",
+      "Skirt",
+      "Trousers"
+    ],
+    "Nightwear": [
+      "Slippers",
+      "Robe",
+      "Socks"
+    ],
+    "Underwear": [
+      "Vest top",
+      "Robe",
+      "Socks"
+    ],
+    "Underwear/nightwear": [
+      "Robe",
+      "Slippers",
+      "Socks"
+    ]
+  },
+  "no_complement": [
+    "Unknown",
+    "Zipper head",
+    "Bra extender",
+    "Stain remover spray",
+    "Washing bag",
+    "Sewing kit",
+    "Clothing mist",
+    "Marker pen",
+    "Wood balls",
+    "Side table",
+    "Cushion",
+    "Dog Wear",
+    "Dog wear",
+    "Toy",
+    "Wireless earphone case"
+  ],
+  "neutral_colors": [
+    "Black",
+    "White",
+    "Off White",
+    "Grey",
+    "Light Grey",
+    "Dark Grey",
+    "Beige",
+    "Light Beige",
+    "Dark Beige",
+    "Greyish Beige",
+    "Silver",
+    "Gold"
+  ],
+  "audience_families": {
+    "ladies": [
+      "Ladieswear",
+      "Ladies Accessories",
+      "Lingeries/Tights"
+    ],
+    "men": [
+      "Menswear"
+    ],
+    "divided": [
+      "Divided"
+    ],
+    "kids": [
+      "Children Sizes 92-140",
+      "Children Sizes 134-170",
+      "Children Accessories, Swimwear"
+    ],
+    "baby": [
+      "Baby Sizes 50-98"
+    ],
+    "sport": [
+      "Sport"
+    ]
+  },
+  "audience_compatible": {
+    "ladies": [
+      "ladies",
+      "divided",
+      "sport"
+    ],
+    "men": [
+      "men",
+      "divided",
+      "sport"
+    ],
+    "divided": [
+      "divided",
+      "ladies",
+      "men",
+      "sport"
+    ],
+    "kids": [
+      "kids",
+      "baby"
+    ],
+    "baby": [
+      "baby",
+      "kids"
+    ],
+    "sport": [
+      "sport",
+      "ladies",
+      "men",
+      "divided"
+    ]
+  }
+}

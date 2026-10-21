@@ -810,3 +810,96 @@ p95 movement here is run-to-run noise rather than a real regression.
 3. `unusual` held out (0.7598) against dev (1.0000) is still the widest split gap.
 4. Phases 7 (gated embeddings), 8 (optional LLM parser), 9 (acceptance, Docker,
    `REPORT.md`) and 10 (deploy) remain.
+
+---
+
+## Phase 6b — Three ranking defects found by reading the per-case numbers (2026-10-21)
+
+Before starting phase 7 I checked where the remaining loss actually was. **51 of 59
+relevance cases were already at the perfect nDCG ceiling**, and the eight that were
+not pointed at real defects rather than rubric artefacts.
+
+Local weighted estimate: **97.15 → 98.46 / 100**. Dev **93.42**, held out **93.69**.
+
+| Case | Before | Diagnosis |
+| --- | --- | --- |
+| `pag-05` | nDCG 0.029 | `dress` selected 10,585 products, of which **267 were not dresses** — tops and blouses whose *names* contain "dress" (`LOGG Olivia dress` is a `Top`). They scored ~2.2 against a real dress's ~12, but the relative `score_floor` of 0.15 let them through. Sorting that page by price ascending surfaced the cheap impostors first. |
+| `typo-01` | nDCG 0.359 | `blak dres` returned two dresses then a belt, an umbrella and a **side table**. `correct('dres')` returned `None`. |
+| `mix-01` | nDCG 0.881 | `white t-shirts` resolved to `product_type Shirt`, not `T-shirt`. |
+
+### 1. Anchor dominance
+
+Once a query names a kind of product and the catalog holds enough of it, products that
+merely *mention* the word are dropped. `dress` now selects exactly **10,318** products,
+all of them `Dress`, and the price-ascending page at offset 10 is all dresses.
+
+Guarded by `anchor_dominance_min` (20): if too few products carry the anchor, the rule
+does not fire, so a narrow query keeps its tail.
+
+### 2. Spelling correction, third attempt
+
+`typo_min_df` was 8, but **the catalog contains truncated style names**: `dres` appears
+19 times (`EQ Terriyaki dres`, `RR 35 5.Fit and flare tee dres`), so rarity alone said
+"spelled correctly". This is the third variant of the same lesson — phase 4 found
+`sunglases` at df 1, and phase 5 found that a correction must never anchor.
+
+Correction now also fires when a near neighbour **dominates** the term:
+`typo_df_ratio` 20, and `dress` at 7,877 against `dres` at 19 is a ratio of 415. Two
+further guards came out of writing the tests:
+
+- the call was still **gated** on `typo_min_df` before reaching `correct()`, which is
+  what actually hid `dres`. `correct()` now decides for itself.
+- `correct('cotton')` returned **`button`**. A term already in the reviewed vocabulary
+  is spelled correctly by construction, so those are never corrected.
+
+All eight typo cases now land on the right product type:
+
+| Query | Top types |
+| --- | --- |
+| `blak dres` | Dress, Dress, Dress, Dress |
+| `snakers` | Sneakers ×4 |
+| `swetar` | Sweater ×4 |
+| `tshart` | T-shirt ×4 |
+| `troussers` | Trousers ×4 |
+| `sunglases` | Sunglasses ×4 |
+| `neklace` | Necklace ×4 |
+| `hoddie for men` | Hoodie ×4 |
+
+### 3. Conservative plural matching
+
+`t-shirts` tokenises to `['t', 'shirts']`, which does not equal the `T-shirt` value
+tokens `['t', 'shirt']`, so the single-token synonym `shirts → Shirt` won and anchor
+dominance then excluded every actual T-shirt. Catalog values are now matched against
+the window with its head noun de-pluralised as well.
+
+Writing the test found the rule was wrong: `singular('dresses')` returned `dresse`.
+It now handles `sses/shes/ches/xes/zes`, `ies → y`, `es`, and bare `s`, while leaving
+`dress` alone.
+
+`black jeans and white t-shirts` now interleaves black denim Trousers with white
+T-shirts, which is what the brief's own example asks for.
+
+### Score movement
+
+| Area | Max | Phase 6 | Phase 6b | Dev | Held out |
+| --- | --- | --- | --- | --- | --- |
+| Validity and constraints | 25 | 25.000 | **25.000** | 1.0000 | 1.0000 |
+| Ranking relevance | 30 | 28.864 | **29.604** | 0.9868 | 0.9868 |
+| Unusual (meaningful) | 7.5 | 6.779 | **7.272** | 1.0000 | 0.9091 |
+| Irrelevant (abstention) | 7.5 | 7.500 | **7.500** | 1.0000 | 1.0000 |
+| Mixed choices | 15 | 14.752 | **14.827** | 1.0000 | 1.0000 |
+| Complementary recommendations | 10 | 9.254 | **9.254** | 0.9253 | 0.9255 |
+| Performance | 5 | 5.000 | **5.000** | — | — |
+| **Total (local estimate)** | 100 | 97.149 | **98.457** | 98.42 | 98.69 |
+
+nDCG@10 **0.9342 → 0.9747**, mixed coverage 1.0000, abstention 1.0000, false positives
+0.0000, contract pass rate 1.0000, 186 tests, smoke test PASS, pooled p95 60.6 ms,
+startup 6.8 s, RSS 1,103 MB.
+
+### What this means for phase 7
+
+The local suite is now **86 % saturated**: 51 of 59 relevance cases sit at the fixed
+grade-3 ceiling, and held-out ranking is 0.9868. Phase 7's gate is "keep embeddings
+only if held-out ranking/unusual nDCG improves meaningfully" — there is almost no
+headroom left for that gate to measure, which is itself a finding about the eval
+rather than about embeddings.

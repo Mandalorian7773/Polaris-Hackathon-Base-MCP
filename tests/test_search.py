@@ -871,7 +871,9 @@ class FullCatalogProductionPathTests(unittest.TestCase):
         self.assertTrue(all(product['product_type'] == 'Dress'
                             and product['price']['amount'] <= 2000
                             for product in primary))
-        self.assertTrue(all(product['category'] == 'Bags'
+        self.assertTrue(all(
+                            (product['product_type'] == 'Bag' or
+                             product['category'] == 'Bags')
                             and product['price']['amount'] <= 1000
                             for product in recommendations))
 
@@ -885,6 +887,107 @@ class FullCatalogProductionPathTests(unittest.TestCase):
         self.assertTrue(all(product['product_type'] == 'Socks'
                             for product in self.products_for(
                                 socks, 'recommendations')))
+
+    def test_relational_orientation_and_strong_anchors_reach_production(self):
+        output = self.catalog.search({
+            'query': 'what bag goes with a dress?',
+            'include_recommendations': True,
+            'limit': 10,
+        })
+        self.assertTrue(output['results'])
+        self.assertTrue(output['recommendations'])
+        primary = {row['id']: product for row, product in zip(
+            output['results'], self.products_for(output))}
+        for recommendation in output['recommendations']:
+            self.assertIn(recommendation['for_product_id'], primary)
+            self.assertEqual(
+                primary[recommendation['for_product_id']]['product_type'],
+                'Dress')
+            candidate = self.catalog.products[
+                self.catalog.position_of[recommendation['id']]]
+            self.assertTrue(
+                candidate['product_type'] == 'Bag' or
+                candidate['category'] == 'Bags')
+
+    def test_multiple_accessory_kinds_are_covered_in_production(self):
+        output = self.catalog.search({
+            'query': 'a dress with a matching bag and coordinating shoes',
+            'include_recommendations': True,
+            'limit': 10,
+        })
+        recommendations = self.products_for(output, 'recommendations')
+        self.assertTrue(any(
+            product['product_type'] == 'Bag' or product['category'] == 'Bags'
+            for product in recommendations))
+        self.assertTrue(any(
+            product['category'] == 'Shoes'
+            for product in recommendations))
+
+    def test_query_accessory_constraints_and_api_filter_scope_in_production(self):
+        constrained = self.catalog.search({
+            'query': 'dress under 2000 with a matching red bag under 2000',
+            'include_recommendations': True,
+            'limit': 10,
+        })
+        self.assertTrue(constrained['recommendations'])
+        self.assertTrue(all(
+            product['color'] == 'Red' and product['price']['amount'] <= 2000
+            for product in self.products_for(constrained, 'recommendations')))
+
+        api_filtered = self.catalog.search({
+            'query': 'dress with a matching bag',
+            'include_recommendations': True,
+            'filters': {
+                'product_type': 'Dress',
+                'min_price': 1999,
+                'max_price': 1999,
+            },
+            'limit': 10,
+        })
+        self.assertTrue(api_filtered['results'])
+        self.assertTrue(api_filtered['recommendations'])
+        self.assertTrue(all(
+            product['product_type'] == 'Dress' and
+            product['price']['amount'] == 1999
+            for product in self.products_for(api_filtered)))
+        self.assertTrue(any(
+            product['price']['amount'] != 1999
+            for product in self.products_for(
+                api_filtered, 'recommendations')))
+
+    def test_audience_disabled_and_impossible_recommendations_in_production(self):
+        kids = self.catalog.search({
+            'query': 'kids dress with a matching bag',
+            'include_recommendations': True,
+            'limit': 10,
+        })
+        self.assertTrue(kids['recommendations'])
+        for recommendation in kids['recommendations']:
+            anchor = self.catalog.products[
+                self.catalog.position_of[recommendation['for_product_id']]]
+            candidate = self.catalog.products[
+                self.catalog.position_of[recommendation['id']]]
+            self.assertTrue(self.catalog.complements.audience_ok(
+                anchor['audience'].casefold(),
+                candidate['audience'].casefold()))
+
+        disabled = self.catalog.search({
+            'query': 'what bag goes with a dress?',
+            'include_recommendations': False,
+            'limit': 10,
+        })
+        self.assertEqual(disabled['recommendations'], [])
+        self.assertTrue(all(
+            product['product_type'] == 'Dress'
+            for product in self.products_for(disabled)))
+
+        impossible = self.catalog.search({
+            'query': 'dog wear',
+            'include_recommendations': True,
+            'limit': 10,
+        })
+        self.assertTrue(impossible['results'])
+        self.assertEqual(impossible['recommendations'], [])
 
     def test_cross_taxonomy_filter_does_not_erase_query_relevance(self):
         self.assertEqual(

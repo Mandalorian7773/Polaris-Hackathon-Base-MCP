@@ -11,8 +11,8 @@ Contract rules enforced here (hackathon-brief.md):
   no useful complement exists -- a forced recommendation is worth less than none;
 * at most five, unique IDs, none of them a primary result on this page;
 * ``for_product_id`` always references a primary result on the current page;
-* explicit category/colour/pattern filters constrain the primary only, while
-  unqualified global requirements (audience, rating, review count, price) also apply;
+* every explicit API filter constrains the primary only; query-derived accessory
+  constraints and unqualified query audiences apply to recommendations;
 * an accessory budget stated in the query wins over an inherited one;
 * ``reason`` is built only from catalog attributes, never invented.
 """
@@ -28,9 +28,9 @@ ROOT = Path(__file__).resolve().parent
 #: Facets that describe *what kind of thing* an item is. A complement is a different
 #: kind by definition, so these never carry over from the primary request.
 KIND_FILTERS = ('category', 'product_type', 'color', 'pattern', 'section')
-#: Requirements about the shopper or the budget, which do carry over.
-GLOBAL_FILTERS = ('audience', 'min_price', 'max_price', 'min_rating',
-                  'min_review_count')
+#: Explicit API filters constrain primary results only. Query-derived global
+#: requirements are represented in RecommendationIntent target groups instead.
+GLOBAL_FILTERS: tuple[str, ...] = ()
 #: Audience carries over as a *family* rather than an exact value: a ladies' handbag
 #: is filed under "Ladies Accessories", not "Ladieswear", and excluding it would
 #: throw away the obvious complement for a Ladieswear dress.
@@ -57,6 +57,39 @@ class RecommendationParams:
     rating_weight: float = 0.12
     review_weight: float = 0.04
     anchor_decay: float = 0.9
+
+
+@dataclass(frozen=True)
+class RecommendationIntent:
+    """Catalog-grounded hard constraints for one requested accompanying item.
+
+    Each target group corresponds to one query requirement. Targets inside a
+    group are alternatives (for example audience=Sport OR section=Kids Sports);
+    every non-empty group must be satisfied. This preserves the retrieval
+    planner's semantics without importing search.py or reparsing the raw query.
+    """
+
+    target_groups: tuple[tuple[tuple[str, str], ...], ...] = ()
+    min_price: float | None = None
+    max_price: float | None = None
+
+    @property
+    def product_types(self) -> tuple[str, ...]:
+        return self._values('product_type')
+
+    @property
+    def categories(self) -> tuple[str, ...]:
+        return self._values('category')
+
+    @property
+    def has_kind(self) -> bool:
+        return bool(self.product_types or self.categories)
+
+    def _values(self, field_name: str) -> tuple[str, ...]:
+        return tuple(dict.fromkeys(
+            value for group in self.target_groups
+            for field, value in group if field == field_name
+        ))
 
 
 @dataclass
@@ -218,25 +251,79 @@ class Recommender:
     def recommendation_filters(self, explicit: dict[str, Any],
                                accessory_budget: dict[str, float] | None
                                ) -> dict[str, Any]:
-        """Global requirements carry over; the kind of product never does."""
-        filters = {key: value for key, value in explicit.items()
-                   if key in GLOBAL_FILTERS}
+        """Legacy adapter: explicit API filters never constrain recommendations."""
+        filters: dict[str, Any] = {}
         if accessory_budget:
-            # An accessory budget stated in the query replaces an inherited one.
-            filters.pop('min_price', None)
-            filters.pop('max_price', None)
             filters.update(accessory_budget)
         return filters
 
     def split_filters(self, explicit: dict[str, Any],
                       accessory_budget: dict[str, float] | None
                       ) -> tuple[dict[str, Any], str | None]:
-        """Exact filters to apply, plus an audience to match by family."""
+        """Compatibility adapter for callers using the pre-intent API."""
         filters = self.recommendation_filters(explicit, accessory_budget)
-        audience = filters.pop('audience', None)
-        return filters, (str(audience).strip().casefold() if audience else None)
+        return filters, None
 
     # -- ranking ------------------------------------------------------------ #
+
+    @staticmethod
+    def _fold(value: Any) -> str:
+        return str(value or '').strip().casefold()
+
+    def _matches_intent(self, position: int,
+                        intent: RecommendationIntent) -> bool:
+        """Apply query-derived accessory constraints as hard requirements."""
+        index = self.catalog.index
+        price = index.prices[position]
+        if intent.min_price is not None and price < intent.min_price:
+            return False
+        if intent.max_price is not None and price > intent.max_price:
+            return False
+
+        candidate_audience = index.folded['audience'][position]
+        for group in intent.target_groups:
+            matched = False
+            for field_name, value in group:
+                if field_name not in index.folded:
+                    continue
+                wanted = self._fold(value)
+                if field_name == 'audience':
+                    matched = self.complements.audience_ok(
+                        wanted, candidate_audience)
+                else:
+                    matched = index.folded[field_name][position] == wanted
+                if matched:
+                    break
+            if not matched:
+                return False
+        return True
+
+    def _ranked_types(self, anchor: int,
+                      intent: RecommendationIntent | None) -> list[str]:
+        """Resolve a requested kind or the reviewed complement map to type locks."""
+        index = self.catalog.index
+        primary_type = index.folded['product_type'][anchor]
+        primary_category = index.folded['category'][anchor]
+
+        if intent is not None and intent.has_kind:
+            # Category values are catalog concepts too. Put their concrete types
+            # first, then add direct product_type targets as recall fallbacks. This
+            # keeps broad nouns such as "shoes" useful without losing exact aliases.
+            ranked = []
+            for category in intent.categories:
+                ranked.extend(self.expand_category(
+                    self._fold(category), limit=len(self.quality_order)))
+            ranked.extend(self._fold(value) for value in intent.product_types)
+        else:
+            ranked = [
+                self._fold(value) for value in
+                self.complements.ranked_for(primary_type, primary_category)
+            ]
+
+        return [
+            product_type for product_type in dict.fromkeys(ranked)
+            if not self.complements.same_role(primary_type, product_type)
+        ]
 
     def _score(self, position: int, anchor: int, type_rank: int, anchor_rank: int,
                requested: bool) -> float:
@@ -244,7 +331,12 @@ class Recommender:
         params = self.params
         score = params.type_rank_decay ** type_rank
         if requested:
-            score += params.requested_type_bonus
+            # Requested alternatives are ordered: an exact target should remain
+            # ahead of broader synonyms even when the latter has a higher rating.
+            score += (
+                params.requested_type_bonus *
+                params.type_rank_decay ** type_rank
+            )
         score *= params.anchor_decay ** anchor_rank
 
         primary_color = index.folded['color'][anchor]
@@ -265,32 +357,32 @@ class Recommender:
         return score
 
     def _candidates_for(self, anchor: int, anchor_rank: int,
-                        requested_types: Sequence[str], filters: dict[str, Any],
-                        excluded: set[int], max_per_type: int,
-                        audience: str | None = None) -> list[Candidate]:
+                        intent: RecommendationIntent | None,
+                        excluded: set[int], max_per_type: int) -> list[Candidate]:
         index = self.catalog.index
         primary_type = index.folded['product_type'][anchor]
-        primary_category = index.folded['category'][anchor]
         primary_audience = index.folded['audience'][anchor]
-
-        if requested_types:
-            ranked = [t for t in requested_types
-                      if not self.complements.same_role(primary_type,
-                                                        t.strip().casefold())]
-        else:
-            ranked = list(self.complements.ranked_for(primary_type, primary_category))
+        ranked = self._ranked_types(anchor, intent)
         if not ranked:
             return []
 
+        requested = bool(intent is not None and intent.has_kind)
+        requested_categories = {
+            self._fold(value) for value in intent.categories
+        } if intent is not None else set()
         found: list[Candidate] = []
+        category_found: list[Candidate] = []
         for type_rank, product_type in enumerate(ranked):
-            folded_type = product_type.strip().casefold()
+            folded_type = self._fold(product_type)
             positions = self.quality_order.get(folded_type)
             if not positions:
                 continue
             taken = 0
+            category_taken = 0
             for scanned, position in enumerate(positions):
-                if scanned >= self.params.scan_depth and taken:
+                if (not requested_categories and
+                        scanned >= self.params.scan_depth and
+                        (taken or category_taken)):
                     break
                 if position in excluded:
                     continue
@@ -298,19 +390,35 @@ class Recommender:
                 if not self.complements.audience_ok(primary_audience,
                                                     candidate_audience):
                     continue
-                if audience and not self.complements.audience_ok(audience,
-                                                                 candidate_audience):
+                if intent is not None and not self._matches_intent(
+                        position, intent):
                     continue
-                if not self.catalog.matches(self.catalog.products[position], filters):
+                if self.complements.same_role(
+                        primary_type,
+                        index.folded['product_type'][position]):
                     continue
-                found.append(Candidate(position, anchor, folded_type,
-                                       self._score(position, anchor, type_rank,
-                                                   anchor_rank,
-                                                   bool(requested_types))))
-                taken += 1
-                if taken >= max_per_type:
+                score = self._score(
+                    position, anchor, type_rank, anchor_rank, requested)
+                if index.folded['category'][position] in requested_categories:
+                    # When a noun resolves to both a category and a type (notably
+                    # "bag"), exact-category evidence is the stronger meaning.
+                    score += self.params.requested_type_bonus * 0.5
+                    if category_taken < max_per_type:
+                        category_found.append(Candidate(
+                            position, anchor, folded_type, score))
+                        category_taken += 1
+                elif taken < max_per_type:
+                    found.append(Candidate(
+                        position, anchor, folded_type, score))
+                    taken += 1
+                if (taken >= max_per_type and
+                        (not requested_categories or
+                         category_taken >= max_per_type)):
                     break
-        return found
+        # Do not pad a category-grounded request with a weaker cross-category
+        # interpretation merely to reach five. Fall back only when the requested
+        # category has no viable inventory for this anchor.
+        return category_found or found
 
     # -- reasons ------------------------------------------------------------ #
 
@@ -344,45 +452,94 @@ class Recommender:
 
     def build(self, primary_positions: Sequence[int], explicit_filters: dict[str, Any],
               accessory_types: Sequence[str] = (),
-              accessory_budget: dict[str, float] | None = None) -> list[dict[str, str]]:
+              accessory_budget: dict[str, float] | None = None,
+              recommendation_intents: Sequence[RecommendationIntent] = (),
+              excluded_positions: Sequence[int] | None = None,
+              ) -> list[dict[str, str]]:
         if not primary_positions:
             return []
-        filters, audience = self.split_filters(explicit_filters, accessory_budget)
-        excluded = set(primary_positions)
+        excluded = set(
+            primary_positions if excluded_positions is None
+            else excluded_positions)
 
-        # When the shopper named the accessory, fill the page with it rather than
-        # spreading across types for variety they did not ask for.
-        requested = bool(accessory_types)
-        max_per_type = self.params.limit if requested else self.params.max_per_type
-        max_per_anchor = self.params.limit if requested else self.params.max_per_anchor
-
-        pool: list[Candidate] = []
+        intents = list(recommendation_intents)
+        if not intents and accessory_types:
+            budget = accessory_budget or {}
+            intents.append(RecommendationIntent(
+                target_groups=(tuple(
+                    ('product_type', value) for value in accessory_types),),
+                min_price=budget.get('min_price'),
+                max_price=budget.get('max_price'),
+            ))
+        # No named accessory means one inferred request driven entirely by the
+        # reviewed complement map. Explicit API filters are intentionally unused.
+        planned: list[RecommendationIntent | None] = intents or [None]
         anchors = list(primary_positions[:self.params.max_anchors])
-        for anchor_rank, anchor in enumerate(anchors):
-            pool.extend(self._candidates_for(anchor, anchor_rank, accessory_types,
-                                             filters, excluded, max_per_type,
-                                             audience))
-        if not pool:
+        pools: list[list[Candidate]] = []
+        for intent in planned:
+            requested = bool(intent is not None and intent.has_kind)
+            max_per_type = (
+                self.params.limit if requested else self.params.max_per_type)
+            pool = []
+            for anchor_rank, anchor in enumerate(anchors):
+                pool.extend(self._candidates_for(
+                    anchor, anchor_rank, intent, excluded, max_per_type))
+            if intent is not None and intent.categories:
+                wanted_categories = {
+                    self._fold(value) for value in intent.categories}
+                category_pool = [
+                    candidate for candidate in pool
+                    if self.catalog.index.folded['category'][
+                        candidate.position] in wanted_categories
+                ]
+                if category_pool:
+                    pool = category_pool
+            pool.sort(
+                key=lambda candidate: (
+                    -candidate.score,
+                    self.catalog.index.ids[candidate.position],
+                    self.catalog.index.ids[candidate.anchor],
+                ))
+            pools.append(pool)
+        if not any(pools):
             return []
 
-        pool.sort(key=lambda c: (-c.score, self.catalog.index.ids[c.position]))
         chosen: list[Candidate] = []
         seen: set[int] = set()
         per_type: dict[str, int] = {}
         per_anchor: dict[int, int] = {}
-        for candidate in pool:
-            if len(chosen) >= self.params.limit:
+        offsets = [0] * len(pools)
+        while len(chosen) < self.params.limit:
+            added = False
+            for intent_number, pool in enumerate(pools):
+                intent = planned[intent_number]
+                requested = bool(intent is not None and intent.has_kind)
+                max_per_type = (
+                    self.params.limit if requested else self.params.max_per_type)
+                max_per_anchor = (
+                    self.params.limit if requested else self.params.max_per_anchor)
+                while offsets[intent_number] < len(pool):
+                    candidate = pool[offsets[intent_number]]
+                    offsets[intent_number] += 1
+                    if (candidate.position in seen or
+                            candidate.position in excluded):
+                        continue
+                    if per_type.get(candidate.product_type, 0) >= max_per_type:
+                        continue
+                    if per_anchor.get(candidate.anchor, 0) >= max_per_anchor:
+                        continue
+                    seen.add(candidate.position)
+                    per_type[candidate.product_type] = (
+                        per_type.get(candidate.product_type, 0) + 1)
+                    per_anchor[candidate.anchor] = (
+                        per_anchor.get(candidate.anchor, 0) + 1)
+                    chosen.append(candidate)
+                    added = True
+                    break
+                if len(chosen) >= self.params.limit:
+                    break
+            if not added:
                 break
-            if candidate.position in seen or candidate.position in excluded:
-                continue
-            if per_type.get(candidate.product_type, 0) >= max_per_type:
-                continue
-            if per_anchor.get(candidate.anchor, 0) >= max_per_anchor:
-                continue
-            seen.add(candidate.position)
-            per_type[candidate.product_type] = per_type.get(candidate.product_type, 0) + 1
-            per_anchor[candidate.anchor] = per_anchor.get(candidate.anchor, 0) + 1
-            chosen.append(candidate)
 
         ids = self.catalog.index.ids
         return [{'id': ids[c.position], 'for_product_id': ids[c.anchor],

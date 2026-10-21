@@ -179,6 +179,47 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(self.accessories('a coat with gloves and a scarf to match'),
                          ['gloves', 'a scarf'])
 
+    def test_accessory_first_questions_reverse_the_surface_order(self):
+        for text, primary, accessory in (
+                ('what bag goes with a dress?', 'a dress', 'bag'),
+                ('which scarf would go best with a coat?', 'a coat', 'scarf'),
+                ('which shoes should I pair with a dress?', 'a dress', 'shoes')):
+            with self.subTest(text=text):
+                self.assertEqual(self.primary(text), [primary])
+                self.assertEqual(self.accessories(text), [accessory])
+
+    def test_generic_relation_question_keeps_the_named_anchor(self):
+        plan = self.plan('what goes with a dress?')
+        self.assertEqual([intent.text for intent in plan.primary], ['a dress'])
+        self.assertEqual(plan.accessories, ())
+        self.assertTrue(plan.complement_requested)
+
+    def test_relational_imperatives_have_explicit_orientation(self):
+        for text, primary, accessory in (
+                ('recommend a scarf for a coat', 'a coat', 'a scarf'),
+                ('recommend a tie to go with a shirt', 'a shirt', 'a tie'),
+                ('pair a dress with shoes', 'a dress', 'shoes'),
+                ('a dress to pair with a bag', 'a dress', 'a bag'),
+                ('accessorize a dress with a necklace', 'a dress', 'a necklace'),
+                ('complete the look with a bag for a dress', 'a dress', 'a bag')):
+            with self.subTest(text=text):
+                self.assertEqual(self.primary(text), [primary])
+                self.assertEqual(self.accessories(text), [accessory])
+
+    def test_repeated_inline_cues_keep_all_accessories_out_of_primary(self):
+        plan = self.plan(
+            'a dress with a matching bag and coordinating shoes')
+        self.assertEqual([intent.text for intent in plan.primary], ['a dress'])
+        self.assertEqual([intent.text for intent in plan.accessories],
+                         ['bag', 'coordinating shoes'])
+
+    def test_plus_and_and_can_introduce_trailing_accessories(self):
+        for text in ('a dress plus a bag to match',
+                     'a dress and a bag to complete the look'):
+            with self.subTest(text=text):
+                self.assertEqual(self.primary(text), ['a dress'])
+                self.assertEqual(self.accessories(text), ['a bag'])
+
     def test_a_lone_accessory_phrase_is_the_primary_ask(self):
         """Nothing to match it against, so the bag is what the shopper wants."""
         plan = self.plan('a matching bag')

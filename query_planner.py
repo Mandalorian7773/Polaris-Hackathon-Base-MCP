@@ -64,6 +64,53 @@ INLINE_CUE_RE = re.compile(
 
 #: A plain "with" only introduces an accessory when what follows names a product.
 WITH_RE = re.compile(r'\s+with\s+', re.I)
+RELATION_JOIN_RE = re.compile(r'\s+(?:with|and|plus|&)\s+', re.I)
+
+# General relational orientations. These describe grammar, not benchmark queries:
+# an accessory can precede its anchor in a question/recommendation, while direct
+# styling imperatives and infinitive clauses put the anchor first.
+ACCESSORY_QUESTION_RE = re.compile(
+    r'^\s*(?:what|which)\s+(.+?)\s+'
+    r'(?:(?:would|will|should|could|can)\s+(?:i\s+|we\s+)?(?:go|pair|work|wear|style)|'
+    r'goes?|pairs?|works?)\s+(?:best\s+)?with\s+(.+?)\s*\??$',
+    re.I,
+)
+GENERIC_QUESTION_RE = re.compile(
+    r'^\s*what\s+(?:(?:would|will|should|could|can)\s+)?'
+    r'(?:(?:i|we)\s+)?(?:goes?|go|pair|wear|work|style)\s+with\s+'
+    r'(.+?)\s*\??$',
+    re.I,
+)
+RECOMMEND_FOR_RE = re.compile(
+    r'^\s*(?:please\s+)?recommend(?:\s+me)?\s+(.+?)\s+'
+    r'(?:for|to\s+(?:go|pair|wear)\s+with)\s+(.+?)\s*[.!?]?$',
+    re.I,
+)
+PAIR_IMPERATIVE_RE = re.compile(
+    r'^\s*(?:please\s+)?(?:pair|style|wear)\s+(.+?)\s+with\s+'
+    r'(.+?)\s*[.!?]?$',
+    re.I,
+)
+PRIMARY_TO_PAIR_RE = re.compile(
+    r'^\s*(.+?)\s+to\s+(?:pair|go|wear|style)\s+with\s+'
+    r'(.+?)\s*[.!?]?$',
+    re.I,
+)
+ACCESSORIZE_RE = re.compile(
+    r'^\s*(?:please\s+)?accessori[sz]e\s+(.+?)\s+with\s+'
+    r'(.+?)\s*[.!?]?$',
+    re.I,
+)
+COMPLETE_FOR_RE = re.compile(
+    r'^\s*(?:please\s+)?complete\s+(?:the\s+|my\s+)?'
+    r'(?:look|outfit)\s+with\s+(.+?)\s+for\s+(.+?)\s*[.!?]?$',
+    re.I,
+)
+COMPLETE_WITH_RE = re.compile(
+    r'^\s*(?:please\s+)?complete\s+(.+?)\s+with\s+'
+    r'(.+?)\s*[.!?]?$',
+    re.I,
+)
 
 CONJUNCTION_RE = re.compile(r'\s*(?:,\s*(?:and\s+|or\s+)?|\s+and\s+|\s+or\s+|'
                             r'\s+&\s+|\s+plus\s+)\s*', re.I)
@@ -215,37 +262,73 @@ class ShoppingPlanner:
 
         return ShoppingPlan(primary=primary_intents, accessories=accessory_intents,
                             per_item_budget=per_item,
-                            complement_requested=requested and bool(accessory_intents))
+                            complement_requested=requested and bool(primary_intents))
 
     # -- complement detection ---------------------------------------------- #
 
     def _split_complement(self, text: str) -> tuple[str, str, bool]:
         """Return (primary text, accessory text, an accessory was asked for)."""
+        generic = GENERIC_QUESTION_RE.match(text)
+        if generic:
+            return generic.group(1), '', True
+
+        accessory_first = ACCESSORY_QUESTION_RE.match(text)
+        if (accessory_first and
+                self.names_product(accessory_first.group(1)) and
+                self.names_product(accessory_first.group(2))):
+            return accessory_first.group(2), accessory_first.group(1), True
+
+        recommend = RECOMMEND_FOR_RE.match(text)
+        if (recommend and self.names_product(recommend.group(1)) and
+                self.names_product(recommend.group(2))):
+            return recommend.group(2), recommend.group(1), True
+
+        complete_for = COMPLETE_FOR_RE.match(text)
+        if (complete_for and self.names_product(complete_for.group(1)) and
+                self.names_product(complete_for.group(2))):
+            return complete_for.group(2), complete_for.group(1), True
+
+        for pattern in (
+                ACCESSORIZE_RE, PRIMARY_TO_PAIR_RE, PAIR_IMPERATIVE_RE,
+                COMPLETE_WITH_RE):
+            relational = pattern.match(text)
+            if (relational and self.names_product(relational.group(1)) and
+                    self.names_product(relational.group(2))):
+                return relational.group(1), relational.group(2), True
+
         trailing = TRAILING_CUE_RE.search(text)
         body = text[:trailing.start()] if trailing else text
 
-        inline = self._last_match(INLINE_CUE_RE, body)
+        # Split on the first explicit cue. With repeated cues, using the last one
+        # incorrectly leaves an earlier requested accessory in the primary clause.
+        inline = INLINE_CUE_RE.search(body)
         if inline:
             return body[:inline.start()], body[inline.end():], True
 
-        # A trailing "to match" makes the final "with"/"and" clause the accessory.
+        # A trailing cue makes the first product-to-product join the boundary.
+        # Skipping joins whose left side names no product preserves attribute
+        # phrases such as "black and white dress and a bag to match".
         if trailing:
-            split = self._last_match(WITH_RE, body) or self._last_match(
-                re.compile(r'\s+and\s+', re.I), body)
+            split = self._first_named_split(RELATION_JOIN_RE, body)
             if split:
-                left, right = body[:split.start()], body[split.end():]
-                if self.names_product(right):
-                    return left, right, True
+                return body[:split.start()], body[split.end():], True
             return body, '', False
 
         # Plain "with": an accessory only if the right-hand side names a product and
         # the left-hand side does too, so "a dress with a floral pattern" stays one item.
-        split = self._last_match(WITH_RE, body)
+        split = self._first_named_split(WITH_RE, body)
         if split:
-            left, right = body[:split.start()], body[split.end():]
-            if self.names_product(left) and self.names_product(right):
-                return left, right, True
+            return body[:split.start()], body[split.end():], True
         return body, '', False
+
+    def _first_named_split(self, pattern: re.Pattern[str],
+                           text: str) -> re.Match[str] | None:
+        """First relation whose two sides both contain a catalog product kind."""
+        for match in pattern.finditer(text):
+            left, right = text[:match.start()], text[match.end():]
+            if self.names_product(left) and self.names_product(right):
+                return match
+        return None
 
     @staticmethod
     def _last_match(pattern: re.Pattern[str], text: str) -> re.Match[str] | None:

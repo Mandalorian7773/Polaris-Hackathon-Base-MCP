@@ -40,6 +40,16 @@ ACCESSORY_ROWS = [
      'Vega sandal', 'Heeled sandals in imitation leather.'),
     ('Necklace', 'Accessories', 'Gold', 'Solid', 'Ladies Accessories',
      'Womens Small accessories', 'Halo chain', 'Necklace with a small pendant.'),
+    ('Bag', 'Accessories', 'Red', 'Solid', 'Ladies Accessories',
+     'Womens Big accessories', 'Ruby shopper', 'Red shopper bag in woven fabric.'),
+    ('Dress', 'Garment Full body', 'Blue', 'Solid', 'Children Sizes 92-140',
+     'Kids Girl', 'Mira dress', 'Kids dress in woven cotton fabric.'),
+    ('Bag', 'Accessories', 'Blue', 'Solid', 'Children Accessories, Swimwear',
+     'Kids Accessories, Swimwear & D', 'Mini bag', 'Small kids bag with a strap.'),
+    ('Bag', 'Accessories', 'Light Blue', 'Solid', 'Baby Sizes 50-98',
+     'Baby Essentials & Complements', 'Tiny bag', 'Soft baby bag with handles.'),
+    ('Shirt', 'Garment Upper body', 'White', 'Solid', 'Menswear',
+     'Men Suits & Tailoring', 'Crisp shirt', 'Cotton shirt with a turn-down collar.'),
 ]
 
 
@@ -193,6 +203,91 @@ class RecommendationContractTests(unittest.TestCase):
         for row in response['recommendations']:
             self.assertEqual(self.row(row['id'])['product_type'], 'Bag')
 
+    def test_accessory_first_question_keeps_the_dress_primary(self):
+        response = self.response('what bag goes with a dress?')
+        self.assertTrue(response['results'])
+        self.assertTrue(response['recommendations'])
+        self.assertTrue(all(
+            self.row(row['id'])['product_type'] == 'Dress'
+            for row in response['results']))
+        self.assertTrue(all(
+            self.row(row['id'])['product_type'] == 'Bag'
+            for row in response['recommendations']))
+
+    def test_multiple_requested_kinds_each_receive_coverage(self):
+        response = self.response(
+            'a dress with a matching bag and coordinating shoes')
+        recommendations = self.assert_invariants(response)
+        categories = {
+            self.row(row['id'])['category'] for row in recommendations}
+        self.assertIn('Accessories', categories)
+        self.assertIn('Shoes', categories)
+
+    def test_disabled_relational_query_ignores_the_accessory(self):
+        response = self.catalog.search({
+            'query': 'what bag goes with a dress?',
+            'include_recommendations': False,
+            'limit': 10,
+        })
+        self.assertEqual(response['recommendations'], [])
+        self.assertTrue(response['results'])
+        self.assertTrue(all(
+            self.row(row['id'])['product_type'] == 'Dress'
+            for row in response['results']))
+
+    def test_broad_relational_matrix(self):
+        """Nine grammar families x nine product pairs: 81 deterministic probes."""
+        pairs = (
+            ('dress', 'Dress', 'bag', {'Bag'}),
+            ('dress', 'Dress', 'necklace', {'Necklace'}),
+            ('shirt', 'Shirt', 'tie', {'Tie'}),
+            ('coat', 'Coat', 'scarf', {'Scarf'}),
+            ('coat', 'Coat', 'gloves', {'Gloves'}),
+            ('sneakers', 'Sneakers', 'socks', {'Socks'}),
+            ('swimsuit', 'Swimsuit', 'sunglasses', {'Sunglasses'}),
+            ('trousers', 'Trousers', 'belt', {'Belt'}),
+            ('dress', 'Dress', 'shoes', {'Sneakers', 'Heeled sandals'}),
+        )
+        templates = (
+            '{primary} with matching {accessory}',
+            'what {accessory} goes with {primary}?',
+            'recommend {accessory} for {primary}',
+            '{primary} to pair with {accessory}',
+            'accessorize {primary} with {accessory}',
+            'pair {primary} with {accessory}',
+            'complete {primary} with {accessory}',
+            '{primary} and {accessory} to complete the look',
+            '{primary} plus {accessory} to match',
+        )
+        for primary, primary_type, accessory, accessory_types in pairs:
+            for template in templates:
+                query = template.format(
+                    primary=primary, accessory=accessory)
+                with self.subTest(query=query):
+                    response = self.response(query, limit=5)
+                    self.assertTrue(response['results'])
+                    self.assertTrue(response['recommendations'])
+                    primary_ids = {
+                        row['id'] for row in response['results']}
+                    self.assertTrue(any(
+                        self.row(row['id'])['product_type'] == primary_type
+                        for row in response['results']))
+                    self.assertTrue(any(
+                        self.row(row['id'])['product_type'] in accessory_types
+                        for row in response['recommendations']))
+                    for row in response['recommendations']:
+                        self.assertIn(row['for_product_id'], primary_ids)
+                        self.assertEqual(
+                            self.row(row['for_product_id'])['product_type'],
+                            primary_type)
+                        anchor_type = self.row(
+                            row['for_product_id'])['product_type'].casefold()
+                        candidate_type = self.row(
+                            row['id'])['product_type'].casefold()
+                        self.assertFalse(
+                            self.catalog.complements.same_role(
+                                anchor_type, candidate_type))
+
     def test_reason_only_uses_catalog_attributes(self):
         response = self.response('a black dress with a matching bag')
         for row in response['recommendations']:
@@ -217,6 +312,14 @@ class RecommendationConstraintTests(unittest.TestCase):
         self.catalog = Catalog(recommend_fixture())
         self.recommender = self.catalog.recommender
 
+    def response(self, query, **rest):
+        return self.catalog.search({
+            'query': query,
+            'include_recommendations': True,
+            'limit': 10,
+            **rest,
+        })
+
     def row(self, product_id):
         return self.catalog.products[self.catalog.position_of[product_id]]
 
@@ -230,20 +333,18 @@ class RecommendationConstraintTests(unittest.TestCase):
         for key in KIND_FILTERS:
             self.assertNotIn(key, filters)
 
-    def test_global_requirements_do_carry_over(self):
+    def test_explicit_api_requirements_do_not_carry_over(self):
         filters = self.recommender.recommendation_filters(
             {'audience': 'Ladieswear', 'min_rating': 4, 'min_review_count': 2,
              'max_price': 1500, 'color': 'Black'}, None)
-        self.assertEqual(filters, {'audience': 'Ladieswear', 'min_rating': 4,
-                                   'min_review_count': 2, 'max_price': 1500})
-        for key in filters:
-            self.assertIn(key, GLOBAL_FILTERS)
+        self.assertEqual(filters, {})
+        self.assertEqual(GLOBAL_FILTERS, ())
 
-    def test_accessory_budget_replaces_an_inherited_one(self):
+    def test_query_accessory_budget_is_the_only_carried_budget(self):
         filters = self.recommender.recommendation_filters(
             {'min_price': 2000, 'max_price': 5000, 'audience': 'Ladieswear'},
             {'max_price': 1000})
-        self.assertEqual(filters, {'audience': 'Ladieswear', 'max_price': 1000})
+        self.assertEqual(filters, {'max_price': 1000})
 
     def test_explicit_audience_filter_constrains_recommendations_by_family(self):
         """A ladies' handbag is filed under Ladies Accessories, not Ladieswear."""
@@ -282,6 +383,46 @@ class RecommendationConstraintTests(unittest.TestCase):
         self.assertTrue(response['recommendations'])
         for row in response['recommendations']:
             self.assertLessEqual(self.row(row['id'])['price']['amount'], 1500)
+
+    def test_accessory_color_and_separate_budgets_are_hard(self):
+        response = self.response(
+            'a dress under 2000 with a matching red bag under 2500',
+            limit=5)
+        self.assertTrue(response['results'])
+        self.assertTrue(response['recommendations'])
+        for row in response['results']:
+            self.assertLessEqual(self.row(row['id'])['price']['amount'], 2000)
+        for row in response['recommendations']:
+            product = self.row(row['id'])
+            self.assertEqual(product['product_type'], 'Bag')
+            self.assertEqual(product['color'], 'Red')
+            self.assertLessEqual(product['price']['amount'], 2500)
+
+    def test_query_audience_uses_compatible_children_families(self):
+        response = self.response('kids dress with a matching bag', limit=5)
+        self.assertTrue(response['results'])
+        self.assertTrue(response['recommendations'])
+        for row in response['recommendations']:
+            audience = self.row(row['id'])['audience'].casefold()
+            self.assertTrue(
+                self.catalog.complements.audience_ok(
+                    'children sizes 92-140', audience))
+
+    def test_explicit_api_price_filters_remain_primary_only(self):
+        response = self.catalog.search({
+            'query': 'a dress with a matching bag',
+            'include_recommendations': True,
+            'filters': {'min_price': 1800, 'max_price': 1900},
+            'limit': 5,
+        })
+        self.assertTrue(response['results'])
+        self.assertTrue(response['recommendations'])
+        self.assertTrue(all(
+            1800 <= self.row(row['id'])['price']['amount'] <= 1900
+            for row in response['results']))
+        self.assertTrue(any(
+            not 1800 <= self.row(row['id'])['price']['amount'] <= 1900
+            for row in response['recommendations']))
 
     def test_cross_audience_complements_are_excluded(self):
         response = self.catalog.search(
@@ -341,6 +482,21 @@ class RecommenderInternalTests(unittest.TestCase):
         types, budget = self.catalog.accessory_targets(plan)
         self.assertIn('bag', types)
         self.assertEqual(budget, {'max_price': 900.0})
+
+    def test_only_strict_current_page_primaries_become_anchors(self):
+        from search import parse_request
+        request = parse_request({
+            'query': 'a dress with a matching bag',
+            'include_recommendations': True,
+        })
+        plan = self.catalog.plan_shopping(request)
+        weak = self.catalog.position_of['0000000011']  # a bag
+        strong = self.catalog.position_of['0000000007']  # a dress
+        self.assertEqual(
+            self.catalog._confident_recommendation_anchors(
+                plan, [weak, strong]),
+            [strong],
+        )
 
     def test_custom_params_are_honoured(self):
         catalog = Catalog(recommend_fixture(),

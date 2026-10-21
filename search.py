@@ -20,7 +20,7 @@ import re
 import sys
 from array import array
 from bisect import bisect_left, bisect_right
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, replace
 from collections import defaultdict, OrderedDict
 from functools import lru_cache
 from pathlib import Path
@@ -28,11 +28,11 @@ from typing import Any, Callable, Iterable, Sequence
 
 from jsonschema import Draft202012Validator, ValidationError
 
-import recommend as recommend_module
 import retrieval
 from llm_planner import LLMSettings, LLMShoppingPlanner
-from query_planner import Budget, ItemIntent, ShoppingPlan, ShoppingPlanner
-from recommend import Complements, RecommendationParams, Recommender
+from query_planner import ItemIntent, ShoppingPlan, ShoppingPlanner
+from recommend import (Complements, RecommendationIntent, RecommendationParams,
+                       Recommender)
 from retrieval import Lexicon, QueryPlanner, RankingParams, Retriever, TextIndex
 
 ROOT = Path(__file__).resolve().parent
@@ -62,7 +62,8 @@ MATERIALIZE_RATIO = 8
 SCORE_CACHE_SIZE = 32
 EXPLICIT_COMPLEMENT_RE = re.compile(
     r'\b(?:matching|complementary|coordinating|accompanying|to match|'
-    r'to go with|to accompany|to pair with|complete (?:the |my )?'
+    r'to go with|goes? with|to accompany|to pair with|recommend|'
+    r'pair|accessori[sz]e|complete (?:the |my )?'
     r'(?:look|outfit))\b',
     re.IGNORECASE,
 )
@@ -930,165 +931,128 @@ class Catalog:
                             types.append(product_type)
         return tuple(types), budget
 
+    def _recommendation_target_groups(
+            self, text: str) -> tuple[tuple[tuple[str, str], ...], ...]:
+        """Preserve each catalog-grounded query requirement as an OR target group."""
+        groups = []
+        for requirement in self.planner.plan(text).requirements:
+            targets = tuple(dict.fromkeys(
+                (field_name, value)
+                for field_name, value, _boost in requirement.targets
+                if field_name in STRING_FILTERS
+            ))
+            if targets:
+                groups.append(targets)
+        return tuple(groups)
+
+    def recommendation_intents(
+            self, plan: ShoppingPlan) -> tuple[RecommendationIntent, ...]:
+        """Translate authoritative accessory roles into constrained requests."""
+        global_groups = []
+        for item in plan.primary:
+            for group in self._recommendation_target_groups(item.text):
+                fields = {field_name for field_name, _value in group}
+                if fields and fields <= {'audience', 'section'}:
+                    global_groups.append(group)
+        shared_groups = tuple(dict.fromkeys(global_groups))
+
+        intents = []
+        for item in plan.accessories:
+            groups = list(self._recommendation_target_groups(item.text))
+            precision = self._parse_precision_intent(item.text)
+            if precision.product_types:
+                # A precise catalog type is stronger than a broad lexical target
+                # from one of its words ("gym bag" must not degrade to any bag).
+                groups = [
+                    tuple((field_name, value)
+                          for field_name, value in group
+                          if field_name not in {'product_type', 'category'})
+                    for group in groups
+                ]
+                groups = [group for group in groups if group]
+                groups.append(tuple(
+                    ('product_type', value)
+                    for value in precision.product_types))
+            has_audience = any(
+                any(field_name in {'audience', 'section'}
+                    for field_name, _value in group)
+                for group in groups
+            )
+            if not has_audience:
+                groups.extend(shared_groups)
+            intents.append(RecommendationIntent(
+                target_groups=tuple(groups),
+                min_price=item.budget.min_price,
+                max_price=item.budget.max_price,
+            ))
+        return tuple(intents)
+
+    def _confident_recommendation_anchors(
+            self, plan: ShoppingPlan,
+            positions: Sequence[int]) -> list[int]:
+        """Keep top current-page primaries grounded in the requested taxonomy."""
+        if not positions:
+            return []
+        allowed: set[int] = set()
+        has_taxonomy = False
+        page = set(positions)
+        for item in plan.primary:
+            product_types: set[str] = set()
+            categories: set[str] = set()
+            for requirement in self.planner.plan(item.text).requirements:
+                if not requirement.is_anchor:
+                    continue
+                for field_name, value, _boost in requirement.targets:
+                    if field_name == 'product_type':
+                        product_types.add(fold(value))
+                    elif field_name == 'category':
+                        categories.add(fold(value))
+            precision = self._parse_precision_intent(item.text)
+            product_types.update(fold(value) for value in precision.product_types)
+            product_types.update(fold(value) for value in precision.soft_types)
+            categories.update(fold(value) for value in precision.categories)
+            if not product_types and not categories:
+                continue
+            has_taxonomy = True
+            for position in page:
+                if (self.index.folded['product_type'][position] in product_types or
+                        self.index.folded['category'][position] in categories):
+                    allowed.add(position)
+
+        candidates = (
+            [position for position in positions if position in allowed]
+            if has_taxonomy else list(positions)
+        )
+        limit = self.recommender.params.max_anchors
+        selected: list[int] = []
+        families: set[str] = set()
+        for position in candidates:
+            audience = self.index.folded['audience'][position]
+            family = self.complements.family_of.get(audience, audience)
+            if family in families:
+                continue
+            selected.append(position)
+            families.add(family)
+            if len(selected) == limit:
+                return selected
+        for position in candidates:
+            if position not in selected:
+                selected.append(position)
+                if len(selected) == limit:
+                    break
+        return selected
+
     def recommendations(self, request: Request, plan: ShoppingPlan,
                         positions: Sequence[int]) -> list[dict[str, str]]:
         if not request.include_recommendations or not positions:
             return []
-        if self.use_precision_ranking:
-            return self._precision_recommendations(request, positions)
-        accessory_types, accessory_budget = self.accessory_targets(plan)
-        return self.recommender.build(positions, request.filters, accessory_types,
-                                      accessory_budget)
-
-    def _precision_recommendations(
-            self, request: Request,
-            primary_positions: Sequence[int]) -> list[dict[str, str]]:
-        """Preserve the calibrated full-catalog complementary ranking."""
-        shopping_plan = self.shopping_planner.plan(request.query)
-        precision_plan = self.precision_plan(request.query)
-        primary_ids = {self.index.ids[position]
-                       for position in primary_positions}
-
-        explicit_scores: dict[int, float] | None = None
-        if precision_plan.complement is not None:
-            explicit_scores = self._precision_intent_scores(
-                precision_plan.complement, set(self.all_indices), {},
-                include_concepts=False)
-        elif shopping_plan.accessories:
-            explicit_scores = {}
-            for intent in shopping_plan.accessories:
-                accept = _acceptor(self.index, intent.budget.as_filters())
-                for position, score in self.score_all(tokens(intent.text)).items():
-                    if accept is None or accept(position):
-                        explicit_scores[position] = max(
-                            score, explicit_scores.get(position, 0.0))
-
-        per_primary: list[list[tuple[int, float]]] = []
-        for primary_position in primary_positions:
-            primary = self.products[primary_position]
-            if explicit_scores is not None:
-                pool = set(explicit_scores)
-                same_audience = {
-                    position for position in pool
-                    if self._audience_family(
-                        self.products[position]['audience']
-                    ) == self._audience_family(primary['audience'])
-                }
-                if same_audience:
-                    pool = same_audience
-            else:
-                pool = self._inferred_complements(primary)
-
-            ranked: list[tuple[int, float]] = []
-            for candidate_position in pool:
-                candidate = self.products[candidate_position]
-                if candidate['id'] in primary_ids:
-                    continue
-                if candidate['product_type'] == primary['product_type']:
-                    continue
-                if explicit_scores is None and (
-                        self._audience_family(candidate['audience']) !=
-                        self._audience_family(primary['audience'])):
-                    continue
-                ranked.append((
-                    candidate_position,
-                    self._complement_score(
-                        primary, candidate,
-                        explicit_scores.get(candidate_position, 0.0)
-                        if explicit_scores is not None else 0.0),
-                ))
-            ranked.sort(key=lambda item: (-item[1], self.index.ids[item[0]]))
-            per_primary.append(ranked)
-
-        recommendations: list[dict[str, str]] = []
-        used: set[str] = set()
-        offsets = [0] * len(per_primary)
-        while len(recommendations) < 5:
-            added = False
-            for primary_number, ranked in enumerate(per_primary):
-                while offsets[primary_number] < len(ranked):
-                    candidate_position = ranked[offsets[primary_number]][0]
-                    offsets[primary_number] += 1
-                    candidate = self.products[candidate_position]
-                    if candidate['id'] in used:
-                        continue
-                    primary = self.products[primary_positions[primary_number]]
-                    used.add(candidate['id'])
-                    recommendations.append({
-                        'id': candidate['id'],
-                        'for_product_id': primary['id'],
-                        'reason': (
-                            f"{candidate['product_type']} in {candidate['color']} "
-                            f"to accompany the selected {primary['product_type']}."
-                        ),
-                    })
-                    added = True
-                    break
-                if len(recommendations) == 5:
-                    break
-            if not added:
-                break
-        return recommendations
-
-    @staticmethod
-    def _audience_family(audience: str) -> str:
-        if audience in {'Ladieswear', 'Ladies Accessories', 'Divided',
-                        'Lingeries/Tights'}:
-            return 'women'
-        if audience == 'Menswear':
-            return 'men'
-        if audience == 'Sport':
-            return 'sport'
-        if audience.startswith('Baby'):
-            return 'baby'
-        if audience.startswith('Children'):
-            return 'children'
-        return audience
-
-    def _inferred_complements(self, primary: dict[str, Any]) -> set[int]:
-        category_pairs = {
-            'Garment Full body': ('Bags', 'Shoes', 'Accessories'),
-            'Garment Upper body': (
-                'Garment Lower body', 'Bags', 'Accessories'),
-            'Garment Lower body': (
-                'Garment Upper body', 'Shoes', 'Bags', 'Accessories'),
-            'Shoes': ('Bags', 'Accessories', 'Garment Lower body'),
-            'Swimwear': ('Bags', 'Shoes', 'Accessories'),
-            'Bags': ('Accessories', 'Garment Full body',
-                     'Garment Upper body'),
-            'Nightwear': ('Socks & Tights', 'Accessories'),
-        }
-        positions: set[int] = set()
-        for category in category_pairs.get(primary['category'], ()):
-            positions.update(
-                self.index.postings['category'].get(fold(category), ()))
-        return positions
-
-    def _complement_score(self, primary: dict[str, Any],
-                          candidate: dict[str, Any],
-                          retrieval_score: float) -> float:
-        score = retrieval_score
-        neutral = {
-            'Black', 'White', 'Off White', 'Beige', 'Light Beige', 'Grey',
-            'Dark Grey', 'Light Grey', 'Silver', 'Gold',
-        }
-        if candidate['color'] == primary['color']:
-            score += 4
-        elif candidate['color'] in neutral:
-            score += 2
-        if self._audience_family(candidate['audience']) == self._audience_family(
-                primary['audience']):
-            score += 8
-        if primary['product_type'] in {'Dress', 'Jumpsuit/Playsuit', 'Skirt'}:
-            score += {
-                'Shoulder bag': 5, 'Cross-body bag': 5, 'Bag': 4,
-                'Tote bag': 4, 'Heels': 4, 'Sandals': 3, 'Necklace': 3,
-                'Earring': 3, 'Earrings': 3,
-            }.get(candidate['product_type'], 0)
-        average = _rating_of(candidate)
-        if average is not None:
-            score += average * 0.05
-        return score
+        anchors = self._confident_recommendation_anchors(plan, positions)
+        if not anchors:
+            return []
+        return self.recommender.build(
+            anchors, {},
+            recommendation_intents=self.recommendation_intents(plan),
+            excluded_positions=positions)
 
     @staticmethod
     def matches(product: dict[str, Any], filters: dict[str, Any]) -> bool:

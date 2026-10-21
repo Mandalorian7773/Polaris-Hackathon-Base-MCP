@@ -903,3 +903,94 @@ grade-3 ceiling, and held-out ranking is 0.9868. Phase 7's gate is "keep embeddi
 only if held-out ranking/unusual nDCG improves meaningfully" — there is almost no
 headroom left for that gate to measure, which is itself a finding about the eval
 rather than about embeddings.
+
+---
+
+## Phase 8 — Optional LLM query parser, off by default (2026-10-21)
+
+The roadmap gates this phase on "held-out results still show weak vague, synonym or
+mixed queries **and** you're willing to use an API key". Held-out synonym and mixed
+are both at ceiling and no API credentials were available here, so it is implemented
+**off by default and unexercised against a live endpoint** rather than skipped: the
+code, the safety envelope and the fallback path are in place and tested, and turning
+it on is one environment variable.
+
+**No change to the serving path.** `requirements.txt` is untouched, the `anthropic`
+SDK is imported lazily, and with `LLM_PARSER` unset the model is never constructed.
+
+### What the model is allowed to do
+
+Only segment the query and read budgets out of it:
+
+```json
+{"primary":     [{"text": "...", "min_price": n|null, "max_price": n|null}],
+ "accessories": [{"text": "...", "min_price": n|null, "max_price": n|null}]}
+```
+
+The response schema has `additionalProperties: false` and **no attribute fields at
+all** — the model cannot name a colour, a product type or an ID, so it cannot invent
+one. On top of that, **every token of every returned segment must already appear in
+the query**; a segment containing a word the shopper did not write is dropped. The
+segments then go through the unchanged deterministic pipeline, which only ever matches
+real catalog values, and explicit API filters are applied afterwards exactly as
+before. A model answer cannot widen a filter, relax a budget or fabricate a product.
+
+### Fallback, which is the normal path
+
+Rule-based planning runs first, always. The model result replaces it only if every
+check passes. Falls back on: the flag being off, a missing SDK, missing credentials,
+a timeout, a transport or API error, malformed JSON, a schema violation, a
+`refusal` or `max_tokens` stop reason, invented tokens, or nothing surviving
+validation. A call is skipped entirely for a blank query, a query the rules already
+reduce to nothing, and a single-word query — there is nothing to segment.
+
+Deadline 2.5 s per the roadmap, `max_retries=0` so the deadline is the deadline, and
+an LRU cache keyed on the query so the benchmark's repeated pagination probes cost one
+call, not three.
+
+### Configuration
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `LLM_PARSER` | *(off)* | `1`/`true`/`yes`/`on` enables it |
+| `LLM_PARSER_BACKEND` | `api` | `api` (Claude API) or `bedrock` (Amazon Bedrock) |
+| `LLM_PARSER_MODEL` | `claude-opus-5-5` | Bedrock ids get an `anthropic.` prefix automatically |
+| `LLM_PARSER_REGION` | — | AWS region, `bedrock` backend only |
+| `LLM_PARSER_TIMEOUT` | `2.5` | seconds |
+| `LLM_PARSER_EFFORT` | `low` | `output_config.effort` |
+| `LLM_PARSER_CACHE` | `512` | LRU entries |
+
+A Bedrock backend is offered because the deployment is already on AWS, which avoids a
+second credential path.
+
+**One thing to decide before enabling it:** the default model is `claude-opus-5-5`,
+and a 2.5-second deadline may be tight for it. `LLM_PARSER_MODEL=claude-haiku-5-5` is
+the cheap, fast alternative, but that is a cost/quality decision for the team rather
+than one to make silently — measure both with `scripts/evaluate.py` before deploying
+either.
+
+### Tests
+
+35 cases in `tests/test_llm_planner.py`, with the SDK call replaced by a stub so no
+network or credentials are needed: default-off, truthy/falsy flag parsing, malformed
+numeric config, every structurally invalid answer shape, over-long and over-numerous
+segments, nonsense and inverted budgets, invented-token rejection, prompt-injection
+attempts, a model-supplied `color`/`product_type` field being discarded, timeout and
+exception fallback, refusal and truncation fallback, unavailable client, call-skipping
+guards, request shape (schema, deadline, effort), Bedrock prefixing, caching, and
+`Catalog` leaving it off by default.
+
+Writing them caught two bugs in the tests themselves (a missing `plan()` call that
+made a fallback assertion vacuous, and a "spends no call" case whose premise was
+wrong) and turned the third guard into a real one: a single-word query now skips the
+call, which it previously did not.
+
+Total suite: **221 tests**, all passing.
+
+### Honest limitation
+
+The on-path has never run against a real endpoint from this machine. What is proven
+is that the system behaves exactly as before with the flag off, and that every
+failure and malicious-answer path falls back safely. Before enabling it in
+deployment, the roadmap's own bar applies: it must clearly win on held out with zero
+timeouts across three repeated runs.

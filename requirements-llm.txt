@@ -1,0 +1,9 @@
+# Optional, for the LLM query parser only (LLM_PARSER=1). The serving path does not
+# import this unless the flag is on, so the base requirements.txt stays unchanged and
+# the deployed image does not need it.
+#
+#   uv pip install -r requirements-llm.txt
+#
+# NOTE: not installed or exercised against a live endpoint in this environment -- no
+# API credentials were available. The fallback path is tested; the on-path is not.
+anthropic>=1.0,<2.0

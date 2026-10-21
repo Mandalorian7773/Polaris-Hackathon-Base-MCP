@@ -30,6 +30,7 @@ from jsonschema import Draft202012Validator, ValidationError
 
 import recommend as recommend_module
 import retrieval
+from llm_planner import LLMSettings, LLMShoppingPlanner
 from query_planner import Budget, ItemIntent, ShoppingPlan, ShoppingPlanner
 from recommend import Complements, RecommendationParams, Recommender
 from retrieval import Lexicon, QueryPlanner, RankingParams, Retriever, TextIndex
@@ -366,7 +367,8 @@ class Catalog:
                  params: RankingParams | None = None,
                  lexicon: Lexicon | None = None,
                  complements: Complements | None = None,
-                 recommendation_params: RecommendationParams | None = None) -> None:
+                 recommendation_params: RecommendationParams | None = None,
+                 llm_settings: LLMSettings | None = None) -> None:
         self.products: list[dict[str, Any]] = sorted(products, key=lambda p: p['id'])
         self.index = build_index(self.products)
         self.position_of: dict[str, int] = {pid: i for i, pid in enumerate(self.index.ids)}
@@ -378,6 +380,13 @@ class Catalog:
                              for f in STRING_FILTERS}
         self._score_cache: OrderedDict[tuple[str, ...], dict[int, float]] = OrderedDict()
         self.shopping_planner = ShoppingPlanner(names_product=self._names_product)
+        # Off unless LLM_PARSER=1; the wrapper always falls back to the rules.
+        self.llm_settings = llm_settings or LLMSettings.from_env()
+        if self.llm_settings.enabled:
+            self.shopping_planner = LLMShoppingPlanner(self.shopping_planner,
+                                                       self.llm_settings)
+            LOG.info('LLM query parser enabled: %s via %s',
+                     self.llm_settings.model, self.llm_settings.backend)
         self.complements = complements or Complements.load()
         self.recommender = Recommender(self, self.complements,
                                        recommendation_params

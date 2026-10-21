@@ -10,3 +10,4 @@ analysis/spike_fts5.sqlite
 analysis/embed_build.log
 analysis/embed_run.log
 analysis/embed*.log
+analysis/*_server.log

@@ -54,7 +54,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument('--threads', type=int, default=0,
                         help='0 lets onnxruntime choose')
     parser.add_argument('--limit', type=int, default=0,
-                        help='embed only the first N products (for a smoke run)')
+                        help='embed only N products (for a smoke run or a chunk)')
+    parser.add_argument('--offset', type=int, default=0,
+                        help='skip this many products first; with --limit this '
+                             'embeds one chunk, which keeps each run short enough '
+                             'to survive a constrained environment')
+    parser.add_argument('--shard', default='',
+                        help='suffix for a chunk output file, e.g. --shard 00')
     args = parser.parse_args(argv)
 
     try:
@@ -65,9 +71,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     print(f'loading catalog from {args.catalog} ...')
     products = json.loads(args.catalog.read_text(encoding='utf-8'))
-    if args.limit:
-        products = products[:args.limit]
     products.sort(key=lambda p: p['id'])        # same order as Catalog.products
+    if args.offset or args.limit:
+        end = args.offset + args.limit if args.limit else len(products)
+        products = products[args.offset:end]
     ids = [str(p['id']) for p in products]
     documents = [document_text(p) for p in products]
     print(f'{len(documents)} documents, '
@@ -101,12 +108,15 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     args.out.mkdir(parents=True, exist_ok=True)
     slug = args.model.split('/')[-1]
+    if args.shard:
+        slug = f'{slug}.part{args.shard}'
     vectors_path = args.out / f'{slug}.f16.npy'
     np.save(vectors_path, half)
     meta = {
         'model': args.model,
         'dimension': int(matrix.shape[1]),
         'products': len(ids),
+        'offset': args.offset,
         'dtype': 'float16',
         'normalized': True,
         'similarity': 'cosine (dot product on normalised vectors)',

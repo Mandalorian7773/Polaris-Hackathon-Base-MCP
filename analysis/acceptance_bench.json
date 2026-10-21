@@ -1,0 +1,73 @@
+{
+  "generated_at": "2026-10-21T19:07:42+0530",
+  "python": "3.12.3",
+  "bench": {
+    "url": "http://127.0.0.1:8000/mcp",
+    "pool_size": 50,
+    "warmup_calls": 20,
+    "call_deadline_s": 10.0,
+    "workloads": {
+      "concurrency_1": {
+        "concurrency": 1,
+        "calls": 100,
+        "errors": 0,
+        "correct_response_rate": 1.0,
+        "min_ms": 16.19,
+        "max_ms": 74.45,
+        "mean_ms": 29.97,
+        "p50_ms": 25.73,
+        "p90_ms": 48.39,
+        "p95_ms": 55.96,
+        "p99_ms": 59.81,
+        "sum_service_time_s": 2.997,
+        "failure_notes": []
+      },
+      "concurrency_5": {
+        "concurrency": 5,
+        "calls": 100,
+        "errors": 0,
+        "correct_response_rate": 1.0,
+        "min_ms": 59.79,
+        "max_ms": 187.99,
+        "mean_ms": 113.48,
+        "p50_ms": 109.99,
+        "p90_ms": 157.19,
+        "p95_ms": 168.33,
+        "p99_ms": 184.01,
+        "sum_service_time_s": 11.348,
+        "failure_notes": []
+      }
+    },
+    "pooled": {
+      "concurrency": 0,
+      "calls": 200,
+      "errors": 0,
+      "correct_response_rate": 1.0,
+      "min_ms": 16.19,
+      "max_ms": 187.99,
+      "mean_ms": 71.72,
+      "p50_ms": 59.81,
+      "p90_ms": 137.78,
+      "p95_ms": 157.19,
+      "p99_ms": 175.87,
+      "sum_service_time_s": 14.344,
+      "failure_notes": []
+    },
+    "distinct_pages_checked": 50
+  },
+  "server": {
+    "managed": true,
+    "startup_seconds": 16.14,
+    "products": 105126,
+    "rss_mb_after_startup": 1103.2,
+    "rss_mb_after_bench": 1104.2,
+    "peak_rss_mb": 1104.2,
+    "server_log": "/home/prvsharya/projects/polaris/analysis/bench_server.log"
+  },
+  "smoke_test": {
+    "passed": true,
+    "seconds": 1.21,
+    "stdout": "PASS: MCP initialization, exact schemas, structured JSON responses, search, and validation",
+    "stderr": ""
+  }
+}

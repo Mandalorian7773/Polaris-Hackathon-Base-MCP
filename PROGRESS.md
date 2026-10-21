@@ -994,3 +994,109 @@ is that the system behaves exactly as before with the flag off, and that every
 failure and malicious-answer path falls back safely. Before enabling it in
 deployment, the roadmap's own bar applies: it must clearly win on held out with zero
 timeouts across three repeated runs.
+
+---
+
+## Phase 7 — Gated embeddings: NOT DECIDED (2026-10-21)
+
+Status: **experiment built and running, gate not applied.** Nothing entered the
+serving path — `requirements.txt` is untouched and `fastembed` lives only in the
+gitignored `.venv-embed`.
+
+### What was measured
+
+| Metric | Value |
+| --- | --- |
+| Model | `BAAI/bge-small-en-v1.5` via fastembed 0.9.0 (ONNX, no torch) |
+| Dimension / dtype | 384, float16, L2-normalised |
+| Throughput | **39 docs/s** single-threaded, 51–62 docs/s at 12 threads |
+| Full build time | **~30–45 minutes** for 105,126 documents |
+| Vector size | 2.3 MB per 3,000 docs → **~80 MB** for the catalog |
+| Process peak RSS during build | **2.4 GB** |
+| Model load | 0.2 s warm, 9.4 s cold (first download ~7 s) |
+| Experiment venv size | 207 MB (onnxruntime, numpy, tokenizers, huggingface-hub) |
+
+A 3,000-document and a 12,000-document build both completed and produced valid
+vectors; the full build was at 20,480/105,126 at handoff.
+
+### Why the gate was not applied
+
+Two reasons, and the first is the honest one:
+
+1. **This environment reaps long-running background jobs.** Three attempts to build
+   the full catalog detached were killed. `--offset/--limit/--shard` were added to
+   `scripts/build_embeddings.py` so the build can be done in foreground chunks, which
+   is how the next run should do it.
+2. **The gate has almost nothing left to measure.** It asks to keep embeddings only
+   if *held-out* ranking/unusual nDCG improves meaningfully. After phase 6b, held-out
+   ranking is **0.9868** and **51 of 59 relevance cases sit at the fixed grade-3
+   ceiling**. A 4-case held-out `unusual` slice cannot establish "meaningful".
+
+That saturation is a finding about the eval, not about embeddings. The measurement
+that would actually be informative is the opposite one: whether dense retrieval
+*damages* abstention, which is currently 1.0000 with 0.0000 false positives.
+`AGENT.md` warns that nearest-neighbour search returns neighbours for nonsense, so
+`scripts/spike_dense.py` sweeps a similarity threshold over the irrelevant cases
+specifically.
+
+### What the next run should do
+
+```sh
+.venv-embed/bin/python -u scripts/build_embeddings.py --threads 12   # to completion
+.venv-embed/bin/python scripts/spike_dense.py
+```
+
+Then apply the gate: keep only if held-out ranking/unusual improves meaningfully,
+abstention does not regress, RSS and startup fit (< 3 GB, < 90 s), and text-query p95
+stays under 1 s. Otherwise delete `.venv-embed/`, `analysis/embeddings/`,
+`scripts/build_embeddings.py` and `scripts/spike_dense.py` — there is nothing else to
+unwind.
+
+---
+
+## Phase 9 — Acceptance (2026-10-21)
+
+### Results
+
+| Check | Result |
+| --- | --- |
+| `python -m unittest discover -s tests` | **221 tests OK** (9.1 s) |
+| Original five starter fixtures | pass, unchanged |
+| `smoke_test.py` | **PASS** |
+| `scripts/check_lexicon.py` | **PASS** — every lexicon and complement target exists; no complement is a substitute |
+| Catalog SHA-256 | **matches** `05b6aa5e…c8f073` |
+| `scripts/evaluate.py --manage` (104 cases) | **98.36 / 100**, zero failing cases, contract pass rate 1.0000 |
+| Validity / nDCG@10 / abstention | 1.0000 / 0.9747 / 1.0000 |
+| Page stability across repeated requests | 50/50 pool pages identical |
+| `GET /mcp` → 405, `GET /healthz` → 200 | verified |
+
+### A measurement caveat worth recording
+
+The acceptance bench reported pooled p95 **157 ms** and the eval reported **234 ms**,
+against 60.6 ms on an idle machine. The cause was the phase 7 embedding build running
+beside them at 1,020 % CPU, load average 23.8. The idle figures stand; the lesson is
+that the latency pool must be run on a quiet machine, which `scripts/preflight.sh`
+now says explicitly. Startup also inflated 6.8 s → 16.1 s under the same load.
+
+### Added
+
+| Path | Purpose |
+| --- | --- |
+| `scripts/preflight.sh` | Pre-submission gate: catalog SHA, tests, validators, smoke test, 405 contract, latency pool, full case suite. Exits non-zero on the first failure. |
+| `REPORT.md` | Changed files, architecture, before/after, rejected experiments, limitations, deploy requirements, verification commands |
+| `HANDOFF.md` | Context for another assistant to continue, including the two open decisions |
+
+### Not done, and why
+
+**The Docker image was never built.** No reachable Docker daemon and no passwordless
+sudo on this machine. The Dockerfile is unchanged from the starter and verified by
+inspection only: `python:3.12-slim`, non-root uid 10001, `/healthz` health check with
+a 60 s start period (startup is ~7 s), `COPY . .` after the tightened
+`.dockerignore`, and `CMD ["python", "server.py"]`. The build and container test must
+be run by the team — ideally on the deploy VM, where it matters:
+
+```sh
+docker build --platform linux/amd64 -t polaris .
+docker run --rm -p 8000:8000 -e MCP_ALLOWED_HOSTS='localhost:*,127.0.0.1:*' polaris
+.venv/bin/python smoke_test.py http://127.0.0.1:8000/mcp
+```

@@ -530,3 +530,154 @@ performance picture is unchanged. +3.6 s startup and +300 MB buy the inverted in
    essentials" still abstain; the intent words are outvoted by ordinary English.
 4. `recommend` is still a stub, so complement scores 2.3/10 purely from primary
    quality. Phase 6.
+
+---
+
+## Phase 5 — Deterministic shopping-intent planning (2026-10-21)
+
+Goal: read what the shopper actually asked for — budgets in prose, several choices,
+an accompanying item — and route each part to the right place.
+
+Local weighted estimate: **80.67 → 93.11 / 100**. Dev **88.29**, held out **88.20**.
+**Zero failing cases**, contract pass rate **1.0000**. The performance gate
+(≥ 85.5 of 95 functional points) is now cleared, so the 5 performance points count
+for the first time.
+
+### Added
+
+| Path | Purpose |
+| --- | --- |
+| `query_planner.py` | Budget parsing, mixed-choice splitting, complement cues |
+| `tests/test_query_planner.py` | 32 cases over ~45 phrasings, no index needed |
+| `tests/test_retrieval.py` (extended) | Unexplained terms, mixed merge, prose budgets, complement planning |
+
+`ShoppingPlanner` takes an injected `names_product` callable, so the module stays
+independent of the retrieval index and is testable against a 50-word vocabulary. No
+model and no network: rules over catalog-derived vocabulary, so a query always plans
+the same way.
+
+### What it parses
+
+- **Budgets**: `under / below / less than / within / up to / at most / no more than /
+  max / cheaper than / < / <=`, the `min` equivalents, `between X and Y`, `from X to
+  Y`, and suffix forms (`2000 or less`, `1000 and above`). Amounts accept `₹`, `Rs`,
+  `Rs.`, `INR`, thousands separators, and `k` / `lakh` multipliers. The budget wording
+  is stripped from the text before retrieval, so "up to ₹3,000" does not pollute the
+  terms.
+- **Mixed choices**: split on `and / or / , / & / plus`. A fragment that names no kind
+  of product is folded into its neighbour, so `black and white dress` stays **one**
+  item while `a dress and a bag` is **two**.
+- **Complements**: inline cues (`with a matching bag`) and trailing cues
+  (`... with a belt to go with them`, `... with a sarong to match`). A plain `with`
+  only introduces an accessory when **both** sides name a product, so
+  `a dress with a floral pattern` stays one item.
+- **Per-item budgets**: `each` propagates a single stated budget to every choice, so
+  `a red dress and black heels under INR 3000 each` constrains both. Different
+  budgets per item are kept separate: `a dress under 2000 with a bag under 1000`.
+
+### Retrieval and merging
+
+Each primary intent is retrieved independently and the rankings are merged by
+**deterministic round-robin**, so every choice gets an early slot in one pooled list
+under one shared limit, deduplicated by catalog ID, stable for repeated requests and
+prefix-consistent for pagination. Which intent contributed each row is tracked, so
+the page is rechecked against **that intent's own** constraints.
+
+Accessory intents are parsed out of the primary query and dropped entirely when
+`include_recommendations` is false, exactly as the brief requires.
+
+### Hard constraints from prose
+
+A prose budget becomes a real filter, but **explicit API filters take precedence**: a
+parsed budget only fills a bound the caller did not set. Colours, types and audiences
+named in the query stay *ranking* signals rather than hard filters — a budget is
+unambiguous, "white" is not (the catalog distinguishes `White` from `Off White`), and
+the brief only requires unambiguous requirements to be enforced.
+
+### Three real bugs found by writing the tests
+
+1. **`< 2000` and `> 1000` never parsed.** The patterns began with `\b`, which does
+   not match between a space and `<`. Replaced with `(?<!\w)`.
+2. **A spelling guess could license an unrelated query.** `parts` is one edit from
+   `pants`, so `spaceship engine parts` acquired a `product_type Trousers` anchor and
+   started returning trousers. A corrected term now scores and counts as catalog
+   evidence but **never anchors**, because an anchor lets a query bypass abstention.
+3. **An anchored query was held to absolute coverage.** `a dress for my trip to
+   Reykjavik` abstained at 1/3 coverage. With a named product type the anchor *is* the
+   evidence, so `min_coverage` now applies only to unanchored queries.
+
+### A better abstention rule
+
+Phase 4 used "without an anchor, require 90 % coverage", which abstained on
+`rainy day essentials` and `something to keep my hair out of my face`. The document
+frequencies show the real discriminator:
+
+| Query | Words the catalog cannot explain |
+| --- | --- |
+| `a titanium wedding suit of armour` | `titanium` 0, `armour` 0 |
+| `spaceship engine parts` | `spaceship` 0 |
+| `car tyres 205/55 R16` | `tyres` 0 |
+| `fresh organic vegetables delivered` | `vegetables` 0, `delivered` 0 |
+| `something to keep my hair out of my face` | none — `keep` 165, `out` 423, `face` 75 |
+| `rainy day essentials` | none — `day` 35, `essentials` 4,938 |
+
+So for an unanchored query: abstain if any requirement is **unexplained** (resolves to
+no catalog attribute *and* every term has document frequency 0), and otherwise answer
+only if some word resolved to a real attribute **or** every word was matched. That
+last clause matters: `cotton top` names no attribute value but is fully accounted
+for — and it is one of the five original starter tests, which this rule broke before
+the clause was added.
+
+Result: abstention is back to **1.0000** with false positives **0.0000**, while
+`unusual` rose from 6.000 to 6.779 — stricter *and* more useful, rather than one at
+the other's expense.
+
+### Score movement
+
+| Area | Max | Phase 3 | Phase 4 | Phase 5 | Dev | Held out |
+| --- | --- | --- | --- | --- | --- | --- |
+| Validity and constraints | 25 | 25.000 | 25.000 | **25.000** | 1.0000 | 1.0000 |
+| Ranking relevance | 30 | 16.135 | 28.864 | **28.864** | 0.9453 | 1.0000 |
+| Unusual (meaningful) | 7.5 | 0.000 | 6.000 | **6.779** | 1.0000 | 0.7598 |
+| Irrelevant (abstention) | 7.5 | 7.500 | 6.875 | **7.500** | 1.0000 | 1.0000 |
+| Mixed choices | 15 | 2.620 | 11.631 | **14.752** | 0.9752 | 1.0000 |
+| Complementary recommendations | 10 | 1.000 | 2.299 | **5.214** | 0.5306 | 0.5000 |
+| Performance | 5 | 0.000 | 0.000 | **5.000** | — | — |
+| **Total (local estimate)** | 100 | 52.255 | 80.669 | **93.109** | 93.29 | 93.20 |
+
+Diagnostics: nDCG@10 **0.9342**, mixed coverage **0.6111 → 1.0000**, mean validity
+**1.0000**, contract pass rate **1.0000**, recommendation quality@5 still **0.1000**.
+
+### Cost
+
+| Metric | Phase 4 | Phase 5 |
+| --- | --- | --- |
+| Startup to healthy `/healthz` | 6.83 s | 6.83 s |
+| RSS after startup | 1,103 MB | 1,103 MB |
+| Empty-query pool p95, concurrency 1 | 15.4 ms | 16.4 ms |
+| Empty-query pool p95, concurrency 5 | 61.0 ms | 58.9 ms |
+| Pooled p95 | 55.7 ms | 53.5 ms |
+| Tests | 92 | **146** |
+| `smoke_test.py` | PASS | PASS |
+
+Planning is pure string work on one short query, so it costs nothing measurable. The
+empty-query pool never reaches the planner at all.
+
+### One eval case was rewritten
+
+`rec-10` was `"recommendations are disabled so only return the dress"` — an artificial
+sentence that tested the harness rather than the contract. It is now
+`"a dress for dinner with a matching bag"` with `include_recommendations: false`,
+which is the brief's actual rule: ignore the complementary portion and return the
+primary matches. Noted because rewriting an eval case while chasing a score is
+exactly the kind of change that deserves to be visible.
+
+### Still open after phase 5
+
+1. **`recommend` is still a stub.** Complement scores 5.21/10 entirely from primary
+   quality; recommendation quality@5 is 0.1000, and the 0.1 is only the one case that
+   legitimately expects an empty list. Phase 6 is worth ~5 points.
+2. `unusual` held out is 0.7598 against 1.0000 on dev — the widest dev/held-out gap
+   left, and the area most exposed to my having written both the cases and the
+   lexicon.
+3. `eval/judgments.jsonl` is still empty: every grade is rubric-derived.

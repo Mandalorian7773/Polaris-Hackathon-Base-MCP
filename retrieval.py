@@ -64,10 +64,13 @@ class RankingParams:
     #: Keep only products scoring at least this share of the best score. 0.05-0.15
     #: were indistinguishable in quality, so take the cheapest.
     score_floor: float = 0.15
-    #: Without a product_type/category anchor, require this much coverage to answer.
-    #: Swept on dev: 0.9 raised abstention 0.75 -> 0.88 with no held-out cost.
-    no_anchor_coverage: float = 0.9
-    #: Even with an anchor, abstain below this coverage.
+    #: A requirement is "unexplained" when it resolves to no catalog attribute and
+    #: every one of its terms is this rare in the catalog. Words the catalog genuinely
+    #: cannot explain have df 0 ("titanium", "armour", "tyres", "spaceship"), while
+    #: ordinary English in a real shopping query does not ("face" 75, "day" 35).
+    unexplained_df: int = 0
+    #: Abstain below this share of requirements satisfied, when nothing in the query
+    #: named a kind of product.
     min_coverage: float = 0.34
     max_results: int = 11000
 
@@ -369,17 +372,18 @@ class QueryPlanner:
             if replacement:
                 corrections.append((token, replacement))
                 terms.append((replacement, self.params.typo_penalty))
+                # A corrected term scores and counts as catalog evidence, but it
+                # must not anchor: an anchor lets a query skip the abstention rules,
+                # and "spaceship engine parts" should not qualify just because
+                # "parts" is one edit away from "pants".
                 penalty = self.params.typo_penalty
                 for field_name, value in self.token_to_values.get(replacement, ()):
                     targets.append((field_name, value,
                                     self.params.synonym_boost * penalty))
-                    anchored = anchored or field_name in ANCHOR_FIELDS
                 mapped = self.lexicon.synonyms.get(replacement)
                 if mapped:
-                    found = self._mapping_targets(
-                        mapped, self.params.synonym_boost * penalty)
-                    targets.extend(found)
-                    anchored = anchored or any(f in ANCHOR_FIELDS for f, _, _ in found)
+                    targets.extend(self._mapping_targets(
+                        mapped, self.params.synonym_boost * penalty))
                 mapped_intent = self.lexicon.intents.get(replacement)
                 if mapped_intent:
                     targets.extend(self._mapping_targets(
@@ -424,31 +428,52 @@ class Retriever:
             return {}
         return self.score_plan(plan)
 
+    def is_explained(self, requirement: Requirement) -> bool:
+        """Does the catalog hold any evidence at all about this requirement?"""
+        if requirement.targets:
+            return True
+        frequency = self.index.document_frequency
+        return any(frequency.get(term, 0) > self.params.unexplained_df
+                   for term, _ in requirement.terms)
+
     def score_plan(self, plan: PlannedQuery) -> dict[int, float]:
         size = self.index.size
         totals = [0.0] * size
         satisfied = [0] * size
+        grounded = [0] * size
         owner = [-1] * size
         touched: list[int] = []
 
         for number, requirement in enumerate(plan.requirements):
+            counters = (totals, satisfied, grounded, owner, touched)
+            anchored = bool(requirement.targets)
             for term, term_weight in requirement.terms:
-                self._accumulate_term(term, term_weight, number, totals, satisfied,
-                                      owner, touched)
+                self._accumulate_term(term, term_weight, number, anchored, counters)
             for field_name, value, boost in requirement.targets:
-                self._accumulate_target(field_name, value, boost, number, totals,
-                                        satisfied, owner, touched)
+                self._accumulate_target(field_name, value, boost, number, counters)
 
         if not touched:
             return {}
 
         required = len(plan.requirements)
         best_satisfied = max(satisfied[p] for p in touched)
-        coverage = best_satisfied / required
-        if coverage < self.params.min_coverage:
-            return {}
-        if not plan.has_anchor and coverage < self.params.no_anchor_coverage:
-            return {}
+
+        if not plan.has_anchor:
+            # No named product kind, so absolute coverage has to carry the query.
+            if best_satisfied / required < self.params.min_coverage:
+                return {}
+            # Nothing named a kind of product, so the query only earns an answer when
+            # the catalog can account for all of it and some of it resolves to a real
+            # attribute. "rainy day essentials" passes; "titanium armour" does not.
+            if any(not self.is_explained(r) for r in plan.requirements):
+                return {}
+            # Either some word resolved to a real catalog attribute, or every word in
+            # the query was matched. "cotton top" names no attribute value but is
+            # fully accounted for; "second hand" is neither.
+            if max(grounded[p] for p in touched) < 1 and best_satisfied < required:
+                return {}
+        # With an anchor the named product type is the evidence, so absolute coverage
+        # is not required: "a dress for my trip to Reykjavik" is still a dress query.
 
         coverage_cut = max(1, best_satisfied - self.params.coverage_slack)
         scored: dict[int, float] = {}
@@ -471,8 +496,8 @@ class Retriever:
         return selected
 
     def _accumulate_term(self, term: str, term_weight: float, number: int,
-                         totals: list[float], satisfied: list[int],
-                         owner: list[int], touched: list[int]) -> None:
+                         grounds: bool, counters: tuple) -> None:
+        totals, satisfied, grounded, owner, touched = counters
         idf = self.index.idf(term)
         if idf <= 0.0:
             return
@@ -498,11 +523,13 @@ class Retriever:
                         touched.append(position)
                     owner[position] = number
                     satisfied[position] += 1
+                    if grounds:
+                        grounded[position] += 1
                 totals[position] += contribution
 
     def _accumulate_target(self, field_name: str, value: str, boost: float, number: int,
-                           totals: list[float], satisfied: list[int],
-                           owner: list[int], touched: list[int]) -> None:
+                           counters: tuple) -> None:
+        totals, satisfied, grounded, owner, touched = counters
         bucket = self.facet_postings.get(field_name, {}).get(value.strip().casefold())
         if not bucket:
             return
@@ -512,4 +539,5 @@ class Retriever:
                     touched.append(position)
                 owner[position] = number
                 satisfied[position] += 1
+                grounded[position] += 1
             totals[position] += boost

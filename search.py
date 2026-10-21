@@ -20,7 +20,7 @@ import re
 import sys
 from array import array
 from bisect import bisect_left, bisect_right
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from collections import OrderedDict
 from functools import lru_cache
 from pathlib import Path
@@ -29,6 +29,7 @@ from typing import Any, Callable, Iterable, Sequence
 from jsonschema import Draft202012Validator, ValidationError
 
 import retrieval
+from query_planner import Budget, ItemIntent, ShoppingPlan, ShoppingPlanner
 from retrieval import Lexicon, QueryPlanner, RankingParams, Retriever, TextIndex
 
 ROOT = Path(__file__).resolve().parent
@@ -372,7 +373,12 @@ class Catalog:
         self.vocabularies = {f: set(self.index.postings[f]) - {''}
                              for f in STRING_FILTERS}
         self._score_cache: OrderedDict[tuple[str, ...], dict[int, float]] = OrderedDict()
+        self.shopping_planner = ShoppingPlanner(names_product=self._names_product)
         self.set_params(self.params)
+
+    def _names_product(self, text: str) -> bool:
+        """Does this fragment name a kind of product? Catalog vocabulary decides."""
+        return self.planner.plan(text).has_anchor
 
     def set_params(self, params: RankingParams) -> None:
         """Swap ranking parameters without rebuilding the index. Used by the sweep."""
@@ -467,26 +473,68 @@ class Catalog:
                     break
         return page[request.offset:]
 
-    def _relevance_page(self, request: Request, plan: QueryPlan) -> list[int]:
-        """Score every filter-passing product, then order by relevance or a field."""
-        index = self.index
-        scores = self.score_all(plan.terms)
+    def effective_filters(self, request: Request, intent: ItemIntent
+                          ) -> dict[str, Any]:
+        """Explicit filters win; a prose budget only fills a bound the caller omitted."""
+        return {**intent.budget.as_filters(), **request.filters}
+
+    def _intent_ranking(self, request: Request, intent: ItemIntent
+                        ) -> list[tuple[int, float]]:
+        """One intent's products, best first, already passing its hard constraints."""
+        scores = self.score_all(tokens(intent.text))
         if not scores:
             return []
-        accept = _acceptor(index, request.filters)
-        scored = [(position, value) for position, value in scores.items()
-                  if accept is None or accept(position)]
-        if not scored:
-            return []
+        accept = _acceptor(self.index, self.effective_filters(request, intent))
+        rows = [(position, value) for position, value in scores.items()
+                if accept is None or accept(position)]
+        rows.sort(key=lambda item: (-item[1], item[0]))
+        return rows
+
+    @staticmethod
+    def _round_robin(rankings: Sequence[Sequence[tuple[int, float]]]
+                     ) -> tuple[list[int], dict[int, int]]:
+        """Interleave each choice's ranking so every choice gets early slots.
+
+        One pooled list, one shared limit, deterministic for identical requests.
+        Returns the merged order and which intent contributed each position.
+        """
+        merged: list[int] = []
+        origin: dict[int, int] = {}
+        seen: set[int] = set()
+        depth = max((len(r) for r in rankings), default=0)
+        for rank in range(depth):
+            for number, ranking in enumerate(rankings):
+                if rank >= len(ranking):
+                    continue
+                position = ranking[rank][0]
+                if position in seen:
+                    continue
+                seen.add(position)
+                origin[position] = number
+                merged.append(position)
+        return merged, origin
+
+    def _relevance_page(self, request: Request, plan: ShoppingPlan
+                        ) -> tuple[list[int], dict[int, int]]:
+        """Retrieve every primary intent, merge, then order and paginate."""
+        rankings = [self._intent_ranking(request, intent) for intent in plan.primary]
+        if not any(rankings):
+            return [], {}
+        merged, origin = self._round_robin(rankings)
 
         if request.sort_by == 'relevance':
-            sign = -1 if request.descending else 1
-            scored.sort(key=lambda item: (sign * item[1], item[0]))
-            positions = [position for position, _ in scored]
+            if request.descending:
+                positions = merged
+            else:
+                # asc reverses the relevance order, keeping ID ascending for ties.
+                best = {position: value for ranking in rankings
+                        for position, value in ranking}
+                positions = sorted(merged, key=lambda p: (best[p], p))
         else:
-            positions = [position for position, _ in scored]
-            positions.sort(key=_order_key(index, request.sort_by, request.descending))
-        return positions[request.offset:request.need]
+            positions = sorted(merged,
+                               key=_order_key(self.index, request.sort_by,
+                                              request.descending))
+        return positions[request.offset:request.need], origin
 
     def _recheck(self, positions: Sequence[int], filters: dict[str, Any]) -> list[int]:
         """Re-verify the page against the original records; the index must agree."""
@@ -498,15 +546,36 @@ class Catalog:
                       len(positions) - len(kept), len(positions), sorted(filters))
         return kept
 
+    def plan_shopping(self, request: Request) -> ShoppingPlan:
+        """Parse the query into intents. Accessories are dropped when disabled."""
+        plan = self.shopping_planner.plan(request.query)
+        if plan.accessories and not request.include_recommendations:
+            plan = replace(plan, accessories=(), complement_requested=False)
+        return plan
+
     def search(self, arguments: dict[str, Any]) -> dict[str, Any]:
         request = parse_request(arguments)
-        plan = plan_query(request.query)
+        plan = self.plan_shopping(request)
         if plan.is_empty:
-            positions = self._filtered_page(request)
+            positions = self._recheck(self._filtered_page(request), request.filters)
         else:
-            positions = self._relevance_page(request, plan)
-        positions = self._recheck(positions, request.filters)
+            positions, origin = self._relevance_page(request, plan)
+            positions = self._recheck_intents(positions, origin, request, plan)
         results = [{'id': self.index.ids[position]} for position in positions]
         recommendations = (self.recommend(results, arguments)
                            if results and request.include_recommendations else [])
         return {'results': results, 'recommendations': recommendations}
+
+    def _recheck_intents(self, positions: Sequence[int], origin: dict[int, int],
+                         request: Request, plan: ShoppingPlan) -> list[int]:
+        """Re-verify each returned row against the constraints of its own intent."""
+        kept = []
+        for position in positions:
+            intent = plan.primary[origin.get(position, 0)]
+            if self.matches(self.products[position],
+                            self.effective_filters(request, intent)):
+                kept.append(position)
+        if len(kept) != len(positions):
+            LOG.error('index/recheck disagreement: dropped %d of %d rows',
+                      len(positions) - len(kept), len(positions))
+        return kept

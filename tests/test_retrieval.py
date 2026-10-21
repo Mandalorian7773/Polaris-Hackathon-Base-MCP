@@ -308,3 +308,179 @@ class IndexShapeTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class UnexplainedTermTests(unittest.TestCase):
+    """Abstention without an anchor turns on whether the catalog can explain the words."""
+
+    def setUp(self):
+        self.catalog = Catalog(fixture_products())
+        self.retriever = self.catalog.retriever
+
+    def requirement(self, text):
+        plan = self.catalog.planner.plan(text)
+        return plan.requirements[0]
+
+    def test_a_word_absent_from_the_catalog_is_unexplained(self):
+        for word in ('titanium', 'mortgage', 'spaceship', 'bangalore'):
+            with self.subTest(word=word):
+                self.assertFalse(self.retriever.is_explained(self.requirement(word)))
+
+    def test_a_word_present_in_catalog_text_is_explained(self):
+        for word in ('leather', 'cotton', 'sole'):
+            with self.subTest(word=word):
+                self.assertTrue(self.retriever.is_explained(self.requirement(word)))
+
+    def test_a_word_resolving_to_an_attribute_is_explained(self):
+        self.assertTrue(self.retriever.is_explained(self.requirement('jeans')))
+        self.assertTrue(self.retriever.is_explained(self.requirement('wedding')))
+
+    def test_an_anchored_query_is_not_held_to_the_rule(self):
+        """A named product type carries the query even with an unknown word in it."""
+        ids = [r['id'] for r in self.catalog.search(
+            {'query': 'a dress for my trip to reykjavik', 'limit': 10})['results']]
+        self.assertTrue(ids)
+
+    def test_a_fully_matched_query_needs_no_attribute_match(self):
+        """No word names an attribute, but every word is matched, so answer.
+
+        The fixture is small enough that the default description df cap (12 % of the
+        catalog, 2 documents here) would drop both terms, so raise it for this case.
+        """
+        catalog = Catalog(fixture_products(), params=RankingParams(desc_df_share=1.0))
+        self.assertTrue([r['id'] for r in catalog.search(
+            {'query': 'cotton jersey', 'limit': 10})['results']])
+
+
+class MixedChoiceRetrievalTests(unittest.TestCase):
+    """Mixed choices share one ranked list and one limit, interleaved deterministically."""
+
+    def setUp(self):
+        self.catalog = Catalog(fixture_products())
+
+    def rows(self, query, **rest):
+        response = self.catalog.search({'query': query, **rest})
+        return [self.catalog.products[self.catalog.position_of[r['id']]]
+                for r in response['results']]
+
+    def types(self, query, **rest):
+        return [row['product_type'] for row in self.rows(query, **rest)]
+
+    def test_both_choices_appear_within_the_shared_limit(self):
+        types = self.types('a dress and a bag', limit=4)
+        self.assertIn('Dress', types)
+        self.assertIn('Bag', types)
+
+    def test_each_choice_gets_an_early_slot(self):
+        self.assertEqual(set(self.types('a dress and a bag', limit=2)),
+                         {'Dress', 'Bag'})
+
+    def test_three_choices_are_all_represented(self):
+        types = set(self.types('a scarf, gloves and socks', limit=6))
+        self.assertEqual(types & {'Scarf', 'Gloves', 'Socks'},
+                         {'Scarf', 'Gloves', 'Socks'})
+
+    def test_pooled_list_has_no_duplicates(self):
+        ids = [r['id'] for r in self.catalog.search(
+            {'query': 'a dress and a bag and sneakers', 'limit': 100})['results']]
+        self.assertEqual(len(ids), len(set(ids)))
+
+    def test_mixed_pages_stay_prefix_consistent(self):
+        whole = [r['id'] for r in self.catalog.search(
+            {'query': 'a dress and a bag', 'limit': 100})['results']]
+        for offset in (0, 1, 2):
+            page = [r['id'] for r in self.catalog.search(
+                {'query': 'a dress and a bag', 'offset': offset,
+                 'limit': 2})['results']]
+            self.assertEqual(page, whole[offset:offset + 2])
+
+    def test_global_filter_applies_to_every_choice(self):
+        for row in self.rows('a dress and a bag', filters={'color': 'Black'},
+                             limit=100):
+            self.assertEqual(row['color'], 'Black')
+
+
+class PriceConstraintTests(unittest.TestCase):
+    """A budget written in prose is a hard constraint; an explicit filter still wins."""
+
+    def setUp(self):
+        self.catalog = Catalog(fixture_products())
+
+    def rows(self, query, **rest):
+        response = self.catalog.search({'query': query, 'limit': 100, **rest})
+        return [self.catalog.products[self.catalog.position_of[r['id']]]
+                for r in response['results']]
+
+    def test_prose_budget_is_enforced(self):
+        rows = self.rows('trousers under 2000')
+        self.assertTrue(rows)
+        for row in rows:
+            self.assertLessEqual(row['price']['amount'], 2000)
+
+    def test_impossible_prose_budget_returns_nothing(self):
+        self.assertEqual(self.rows('a dress for under INR 50'), [])
+
+    def test_prose_range_is_enforced(self):
+        for row in self.rows('trousers between 1000 and 3000'):
+            self.assertTrue(1000 <= row['price']['amount'] <= 3000)
+
+    def test_explicit_filter_overrides_a_conflicting_prose_budget(self):
+        rows = self.rows('trousers under 50', filters={'max_price': 8000})
+        self.assertTrue(rows, 'explicit max_price must win over "under 50"')
+        for row in rows:
+            self.assertLessEqual(row['price']['amount'], 8000)
+
+    def test_accessory_budget_does_not_constrain_the_primary(self):
+        rows = self.rows('a dress with a bag under 600',
+                         include_recommendations=True)
+        self.assertTrue(rows)
+        self.assertTrue(any(row['price']['amount'] > 600 for row in rows))
+
+
+class ComplementPlanningTests(unittest.TestCase):
+    def setUp(self):
+        self.catalog = Catalog(fixture_products())
+
+    def test_accessory_words_do_not_dilute_the_primary_page(self):
+        plain = [r['id'] for r in self.catalog.search(
+            {'query': 'sneakers', 'limit': 10})['results']]
+        with_accessory = [r['id'] for r in self.catalog.search(
+            {'query': 'sneakers with socks to go with them', 'limit': 10,
+             'include_recommendations': True})['results']]
+        self.assertTrue(with_accessory)
+        self.assertEqual(with_accessory[0], plain[0])
+
+    def test_accessory_is_dropped_when_recommendations_are_disabled(self):
+        from search import parse_request
+        request = parse_request({'query': 'a dress with a matching bag',
+                                 'include_recommendations': False})
+        plan = self.catalog.plan_shopping(request)
+        self.assertEqual(plan.accessories, ())
+        self.assertFalse(plan.complement_requested)
+
+    def test_accessory_is_kept_when_recommendations_are_enabled(self):
+        from search import parse_request
+        request = parse_request({'query': 'a dress with a matching bag',
+                                 'include_recommendations': True})
+        plan = self.catalog.plan_shopping(request)
+        self.assertEqual([i.text for i in plan.accessories], ['bag'])
+        self.assertTrue(plan.complement_requested)
+
+    def test_complement_phrasing_never_puts_the_accessory_in_results(self):
+        rows = self.catalog.search({'query': 'a dress with a matching bag',
+                                    'limit': 10,
+                                    'include_recommendations': True})['results']
+        types = {self.catalog.products[self.catalog.position_of[r['id']]]['product_type']
+                 for r in rows}
+        self.assertNotIn('Bag', types)
+
+    def test_a_spelling_guess_does_not_license_an_unrelated_query(self):
+        """"parts" is one edit from "pants"; that must not make it a trouser query."""
+        plan = self.catalog.planner.plan('spaceship engine parts')
+        self.assertFalse(plan.has_anchor)
+        self.assertEqual([r['id'] for r in self.catalog.search(
+            {'query': 'spaceship engine parts', 'limit': 100})['results']], [])
+
+    def test_a_corrected_term_still_retrieves_on_its_own(self):
+        self.assertTrue([r['id'] for r in self.catalog.search(
+            {'query': 'snakers', 'limit': 10})['results']])

@@ -37,7 +37,7 @@ SEMANTIC_AREAS = ('ranking', 'unusual', 'irrelevant', 'mixed', 'complement')
 
 #: Default coordinate-descent axes, cheapest and most decisive first.
 DEFAULT_AXES: tuple[tuple[str, tuple[Any, ...]], ...] = (
-    ('no_anchor_coverage', (0.4, 0.5, 0.6, 0.75, 0.9)),
+    ('unexplained_df', (0, 2, 10)),
     ('min_coverage', (0.2, 0.34, 0.45, 0.6)),
     ('coverage_slack', (0, 1, 2)),
     ('coverage_exponent', (1.0, 1.5, 2.0, 3.0)),

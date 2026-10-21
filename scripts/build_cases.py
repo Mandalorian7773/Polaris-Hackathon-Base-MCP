@@ -511,10 +511,12 @@ COMPLEMENT = [
                                         'Socks']),
                      g(1, category=[UNDERWEAR, UPPER])])),
     case('rec-10', 'complement', 'dev',
-         q('recommendations are disabled so only return the dress',
+         q('a dress for dinner with a matching bag',
            include_recommendations=False),
-         'With recommendations off the complementary portion must be ignored.',
+         'Recommendations off: ignore the complementary portion, return the dress '
+         'only, and keep recommendations empty.',
          grades=[g(3, product_type='Dress'),
+                 g(2, product_type=['Jumpsuit/Playsuit', 'Skirt', 'Blouse']),
                  g(1, category=FULL)],
          complement=complement()),
 ]

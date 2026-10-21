@@ -17,6 +17,8 @@
     "a",
     "about",
     "above",
+    "accompany",
+    "accompanying",
     "also",
     "an",
     "and",
@@ -39,6 +41,9 @@
     "cheaper",
     "clothes",
     "clothing",
+    "complementary",
+    "complete",
+    "coordinating",
     "cost",
     "costs",
     "could",
@@ -51,6 +56,7 @@
     "from",
     "get",
     "give",
+    "goes",
     "good",
     "has",
     "have",
@@ -66,6 +72,9 @@
     "less",
     "like",
     "looking",
+    "match",
+    "matches",
+    "matching",
     "maybe",
     "me",
     "more",
@@ -81,6 +90,7 @@
     "outfit",
     "outfits",
     "over",
+    "pairs",
     "please",
     "price",
     "priced",
@@ -1155,6 +1165,36 @@
         "Backpack",
         "Weekend/Gym bag",
         "Bumbag"
+      ]
+    },
+    "hat": {
+      "product_type": [
+        "Hat/beanie",
+        "Hat/brim",
+        "Cap/peaked",
+        "Cap",
+        "Straw hat",
+        "Bucket hat",
+        "Felt hat",
+        "Beanie"
+      ]
+    },
+    "hats": {
+      "product_type": [
+        "Hat/beanie",
+        "Hat/brim",
+        "Cap/peaked",
+        "Cap",
+        "Straw hat",
+        "Bucket hat",
+        "Felt hat",
+        "Beanie"
+      ]
+    },
+    "caps": {
+      "product_type": [
+        "Cap/peaked",
+        "Cap"
       ]
     }
   },

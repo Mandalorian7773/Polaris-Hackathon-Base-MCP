@@ -47,21 +47,23 @@ def top_indices(scores, allowed, limit):
 
 
 def lexical_lane(catalog, query, depth):
-    plan = catalog.plan_query(query)
+    plan = catalog.precision_plan(query)
     if len(plan.primary) != 1:
         return [], {}
-    scores = catalog._intent_scores(plan.primary[0], catalog.all_indices, {})
+    scores = catalog._precision_intent_scores(
+        plan.primary[0], set(catalog.all_indices), {})
     ordered = sorted(
         scores, key=lambda index: (-scores[index], catalog.products[index]['id']))
     return ordered[:depth], scores
 
 
 def dense_allowed(catalog, query):
-    plan = catalog.plan_query(query)
+    plan = catalog.precision_plan(query)
     if len(plan.primary) != 1:
         return catalog.all_indices
     hard_intent = replace(plan.primary[0], soft_types=())
-    allowed, _ = catalog._intent_allowed(hard_intent, catalog.all_indices, {})
+    allowed, _ = catalog._precision_intent_allowed(
+        hard_intent, set(catalog.all_indices), {})
     return allowed
 
 

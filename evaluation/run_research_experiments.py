@@ -1,8 +1,9 @@
-"""Controlled retrieval ablations on query families absent from the main suite.
+"""Evaluate integrated retrieval on query families absent from the main suite.
 
 The cases use catalog-fact grading rules, not organizer or independent human
-judgments. Development is the default. Use --split heldout only for a final
-promotion check after selecting a candidate.
+judgments. Historical pre-integration ablations remain in the checked-in result
+artifacts; current runs compare the integrated precision lane with the teammate
+BM25F lane on the same fixed cases.
 """
 from __future__ import annotations
 
@@ -190,6 +191,14 @@ class ExpandedIntentCatalog(TaxonomyCatalog):
         })
 
 
+class TeammateBM25FCatalog(Catalog):
+    """The integrated architecture with its general BM25F lane selected."""
+
+    def __init__(self, products):
+        super().__init__(products)
+        self.use_precision_ranking = False
+
+
 class FTS5Catalog(Catalog):
     """Ranking-only FTS5 ablation over the current candidate set."""
 
@@ -349,11 +358,8 @@ def main():
     args = parser.parse_args()
     products = json.loads((ROOT / 'data/products.json').read_text(encoding='utf-8'))
     configurations = {
-        'pre_promotion': PrePromotionCatalog,
-        'taxonomy_correction': TaxonomyCatalog,
-        'expanded_intents': ExpandedIntentCatalog,
-        'promoted': Catalog,
-        'fts5_promoted_ranking': FTS5Catalog,
+        'integrated_precision': Catalog,
+        'teammate_bm25f': TeammateBM25FCatalog,
     }
     reports = {}
     for name, catalog_type in configurations.items():

@@ -1,0 +1,2488 @@
+{
+  "generated_at": "2026-10-21T18:15:49+0530",
+  "git_sha": "f629168",
+  "url": "http://127.0.0.1:8000/mcp",
+  "cases_path": "/home/prvsharya/projects/polaris/eval/cases.jsonl",
+  "judgments": {
+    "human": 0,
+    "path": "/home/prvsharya/projects/polaris/eval/judgments.jsonl"
+  },
+  "server": {
+    "managed": true,
+    "startup_seconds": 6.83,
+    "products": 105126,
+    "rss_mb_after_startup": 1102.9,
+    "rss_mb_after_run": 1104.3,
+    "peak_rss_mb": 1104.3
+  },
+  "dev": {
+    "cases": 72,
+    "areas": {
+      "complement": {
+        "cases": 7,
+        "mean_score": 0.530612,
+        "points": 5.306,
+        "max_points": 10
+      },
+      "irrelevant": {
+        "cases": 8,
+        "mean_score": 1.0,
+        "points": 7.5,
+        "max_points": 7.5
+      },
+      "mixed": {
+        "cases": 8,
+        "mean_score": 0.97525,
+        "points": 14.629,
+        "max_points": 15
+      },
+      "ranking": {
+        "cases": 18,
+        "mean_score": 0.945316,
+        "points": 28.359,
+        "max_points": 30
+      },
+      "unusual": {
+        "cases": 6,
+        "mean_score": 1.0,
+        "points": 7.5,
+        "max_points": 7.5
+      },
+      "validity": {
+        "cases": 25,
+        "mean_score": 1.0,
+        "points": 25.0,
+        "max_points": 25
+      }
+    },
+    "functional_points": 88.294,
+    "functional_max": 95.0,
+    "mean_ndcg_at_10": 0.926938,
+    "abstention_rate": 1.0,
+    "false_positive_rate": 0.0,
+    "mixed_coverage": 1.0,
+    "recommendation_quality": 0.142857,
+    "contract_pass_rate": 1.0,
+    "mean_validity": 1.0,
+    "cases_with_failures": [],
+    "p50_case_ms": 16.3,
+    "p95_case_ms": 50.1
+  },
+  "heldout": {
+    "cases": 32,
+    "areas": {
+      "complement": {
+        "cases": 3,
+        "mean_score": 0.5,
+        "points": 5.0,
+        "max_points": 10
+      },
+      "irrelevant": {
+        "cases": 4,
+        "mean_score": 1.0,
+        "points": 7.5,
+        "max_points": 7.5
+      },
+      "mixed": {
+        "cases": 4,
+        "mean_score": 1.0,
+        "points": 15.0,
+        "max_points": 15
+      },
+      "ranking": {
+        "cases": 8,
+        "mean_score": 1.0,
+        "points": 30.0,
+        "max_points": 30
+      },
+      "unusual": {
+        "cases": 4,
+        "mean_score": 0.5,
+        "points": 3.75,
+        "max_points": 7.5
+      },
+      "validity": {
+        "cases": 9,
+        "mean_score": 1.0,
+        "points": 25.0,
+        "max_points": 25
+      }
+    },
+    "functional_points": 86.25,
+    "functional_max": 95.0,
+    "mean_ndcg_at_10": 0.894737,
+    "abstention_rate": 1.0,
+    "false_positive_rate": 0.0,
+    "mixed_coverage": 1.0,
+    "recommendation_quality": 0.0,
+    "contract_pass_rate": 0.9375,
+    "mean_validity": 0.984375,
+    "cases_with_failures": [
+      "vague-08",
+      "vague-10"
+    ],
+    "p50_case_ms": 16.4,
+    "p95_case_ms": 37.6
+  },
+  "overall": {
+    "cases": 104,
+    "areas": {
+      "complement": {
+        "cases": 10,
+        "mean_score": 0.521429,
+        "points": 5.214,
+        "max_points": 10
+      },
+      "irrelevant": {
+        "cases": 12,
+        "mean_score": 1.0,
+        "points": 7.5,
+        "max_points": 7.5
+      },
+      "mixed": {
+        "cases": 12,
+        "mean_score": 0.9835,
+        "points": 14.752,
+        "max_points": 15
+      },
+      "ranking": {
+        "cases": 26,
+        "mean_score": 0.962142,
+        "points": 28.864,
+        "max_points": 30
+      },
+      "unusual": {
+        "cases": 10,
+        "mean_score": 0.8,
+        "points": 6.0,
+        "max_points": 7.5
+      },
+      "validity": {
+        "cases": 34,
+        "mean_score": 1.0,
+        "points": 25.0,
+        "max_points": 25
+      }
+    },
+    "functional_points": 87.33,
+    "functional_max": 95.0,
+    "mean_ndcg_at_10": 0.916568,
+    "abstention_rate": 1.0,
+    "false_positive_rate": 0.0,
+    "mixed_coverage": 1.0,
+    "recommendation_quality": 0.1,
+    "contract_pass_rate": 0.980769,
+    "mean_validity": 0.995192,
+    "cases_with_failures": [
+      "vague-08",
+      "vague-10"
+    ],
+    "p50_case_ms": 16.4,
+    "p95_case_ms": 39.2
+  },
+  "performance": {
+    "eligible": true,
+    "gate": ">= 85.5 of 95.0 functional points and >= 95% correct calls",
+    "p95_ms": 60.38,
+    "correct_response_rate": 1.0,
+    "latency_scale": 1.0,
+    "points": 5.0
+  },
+  "bench": {
+    "url": "http://127.0.0.1:8000/mcp",
+    "pool_size": 50,
+    "warmup_calls": 20,
+    "call_deadline_s": 10.0,
+    "workloads": {
+      "concurrency_1": {
+        "concurrency": 1,
+        "calls": 100,
+        "errors": 0,
+        "correct_response_rate": 1.0,
+        "min_ms": 10.9,
+        "max_ms": 17.06,
+        "mean_ms": 12.08,
+        "p50_ms": 11.34,
+        "p90_ms": 14.8,
+        "p95_ms": 15.7,
+        "p99_ms": 16.64,
+        "sum_service_time_s": 1.208,
+        "failure_notes": []
+      },
+      "concurrency_5": {
+        "concurrency": 5,
+        "calls": 100,
+        "errors": 0,
+        "correct_response_rate": 1.0,
+        "min_ms": 18.87,
+        "max_ms": 69.04,
+        "mean_ms": 46.02,
+        "p50_ms": 47.22,
+        "p90_ms": 60.38,
+        "p95_ms": 63.04,
+        "p99_ms": 68.89,
+        "sum_service_time_s": 4.602,
+        "failure_notes": []
+      }
+    },
+    "pooled": {
+      "concurrency": 0,
+      "calls": 200,
+      "errors": 0,
+      "correct_response_rate": 1.0,
+      "min_ms": 10.9,
+      "max_ms": 69.04,
+      "mean_ms": 29.05,
+      "p50_ms": 17.06,
+      "p90_ms": 54.45,
+      "p95_ms": 60.38,
+      "p99_ms": 66.44,
+      "sum_service_time_s": 5.81,
+      "failure_notes": []
+    },
+    "distinct_pages_checked": 50
+  },
+  "estimate": {
+    "functional": 87.33,
+    "performance": 5.0,
+    "total": 92.33,
+    "disclaimer": "local rubric-based estimate, not an official score"
+  },
+  "per_case": [
+    {
+      "case_id": "exact-01",
+      "category": "exact",
+      "split": "dev",
+      "area": "ranking",
+      "elapsed_ms": 56.2,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "exact-02",
+      "category": "exact",
+      "split": "dev",
+      "area": "ranking",
+      "elapsed_ms": 23.9,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 0.832311,
+      "score": 0.832311,
+      "grades": [
+        2,
+        3,
+        3,
+        3,
+        3,
+        3,
+        2,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "exact-03",
+      "category": "exact",
+      "split": "dev",
+      "area": "ranking",
+      "elapsed_ms": 27.1,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "exact-04",
+      "category": "exact",
+      "split": "heldout",
+      "area": "ranking",
+      "elapsed_ms": 22.9,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "exact-05",
+      "category": "exact",
+      "split": "dev",
+      "area": "ranking",
+      "elapsed_ms": 16.6,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "exact-06",
+      "category": "exact",
+      "split": "dev",
+      "area": "ranking",
+      "elapsed_ms": 12.2,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "exact-07",
+      "category": "exact",
+      "split": "heldout",
+      "area": "ranking",
+      "elapsed_ms": 22.9,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "exact-08",
+      "category": "exact",
+      "split": "dev",
+      "area": "ranking",
+      "elapsed_ms": 20.8,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "exact-09",
+      "category": "exact",
+      "split": "heldout",
+      "area": "ranking",
+      "elapsed_ms": 13.6,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "exact-10",
+      "category": "exact",
+      "split": "dev",
+      "area": "ranking",
+      "elapsed_ms": 39.2,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "syn-01",
+      "category": "synonym",
+      "split": "dev",
+      "area": "ranking",
+      "elapsed_ms": 13.7,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "syn-02",
+      "category": "synonym",
+      "split": "dev",
+      "area": "ranking",
+      "elapsed_ms": 27.8,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "syn-03",
+      "category": "synonym",
+      "split": "dev",
+      "area": "ranking",
+      "elapsed_ms": 28.5,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 0.824428,
+      "score": 0.824428,
+      "grades": [
+        3,
+        3,
+        1,
+        1,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "syn-04",
+      "category": "synonym",
+      "split": "heldout",
+      "area": "ranking",
+      "elapsed_ms": 25.0,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "syn-05",
+      "category": "synonym",
+      "split": "dev",
+      "area": "ranking",
+      "elapsed_ms": 22.2,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "syn-06",
+      "category": "synonym",
+      "split": "dev",
+      "area": "ranking",
+      "elapsed_ms": 17.7,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "syn-07",
+      "category": "synonym",
+      "split": "heldout",
+      "area": "ranking",
+      "elapsed_ms": 11.9,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "syn-08",
+      "category": "synonym",
+      "split": "dev",
+      "area": "ranking",
+      "elapsed_ms": 13.5,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "typo-01",
+      "category": "typo",
+      "split": "dev",
+      "area": "ranking",
+      "elapsed_ms": 38.8,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 0.358954,
+      "score": 0.358954,
+      "grades": [
+        3,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "case_id": "typo-02",
+      "category": "typo",
+      "split": "dev",
+      "area": "ranking",
+      "elapsed_ms": 16.3,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "typo-03",
+      "category": "typo",
+      "split": "dev",
+      "area": "ranking",
+      "elapsed_ms": 20.8,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "typo-04",
+      "category": "typo",
+      "split": "heldout",
+      "area": "ranking",
+      "elapsed_ms": 23.5,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "typo-05",
+      "category": "typo",
+      "split": "dev",
+      "area": "ranking",
+      "elapsed_ms": 30.3,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "typo-06",
+      "category": "typo",
+      "split": "heldout",
+      "area": "ranking",
+      "elapsed_ms": 14.0,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "typo-07",
+      "category": "typo",
+      "split": "dev",
+      "area": "ranking",
+      "elapsed_ms": 14.1,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "typo-08",
+      "category": "typo",
+      "split": "heldout",
+      "area": "ranking",
+      "elapsed_ms": 32.9,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "vague-01",
+      "category": "vague",
+      "split": "dev",
+      "area": "unusual",
+      "elapsed_ms": 28.6,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "vague-02",
+      "category": "vague",
+      "split": "dev",
+      "area": "unusual",
+      "elapsed_ms": 18.8,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "vague-03",
+      "category": "vague",
+      "split": "dev",
+      "area": "unusual",
+      "elapsed_ms": 33.5,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "vague-04",
+      "category": "vague",
+      "split": "heldout",
+      "area": "unusual",
+      "elapsed_ms": 37.6,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "vague-05",
+      "category": "vague",
+      "split": "dev",
+      "area": "unusual",
+      "elapsed_ms": 15.2,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "vague-06",
+      "category": "vague",
+      "split": "heldout",
+      "area": "unusual",
+      "elapsed_ms": 23.6,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "vague-07",
+      "category": "vague",
+      "split": "dev",
+      "area": "unusual",
+      "elapsed_ms": 22.4,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "vague-08",
+      "category": "vague",
+      "split": "heldout",
+      "area": "unusual",
+      "elapsed_ms": 12.3,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": false
+      },
+      "validity": 0.75,
+      "ndcg": 0.0,
+      "score": 0.0,
+      "failures": [
+        "expected results, got an empty page"
+      ]
+    },
+    {
+      "case_id": "vague-09",
+      "category": "vague",
+      "split": "dev",
+      "area": "unusual",
+      "elapsed_ms": 33.4,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "vague-10",
+      "category": "vague",
+      "split": "heldout",
+      "area": "unusual",
+      "elapsed_ms": 13.2,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": false
+      },
+      "validity": 0.75,
+      "ndcg": 0.0,
+      "score": 0.0,
+      "failures": [
+        "expected results, got an empty page"
+      ]
+    },
+    {
+      "case_id": "irr-01",
+      "category": "irrelevant",
+      "split": "dev",
+      "area": "irrelevant",
+      "elapsed_ms": 14.9,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0,
+      "empty_correct": true
+    },
+    {
+      "case_id": "irr-02",
+      "category": "irrelevant",
+      "split": "dev",
+      "area": "irrelevant",
+      "elapsed_ms": 19.6,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0,
+      "empty_correct": true
+    },
+    {
+      "case_id": "irr-03",
+      "category": "irrelevant",
+      "split": "dev",
+      "area": "irrelevant",
+      "elapsed_ms": 16.1,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0,
+      "empty_correct": true
+    },
+    {
+      "case_id": "irr-04",
+      "category": "irrelevant",
+      "split": "dev",
+      "area": "irrelevant",
+      "elapsed_ms": 23.0,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0,
+      "empty_correct": true
+    },
+    {
+      "case_id": "irr-05",
+      "category": "irrelevant",
+      "split": "heldout",
+      "area": "irrelevant",
+      "elapsed_ms": 17.6,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0,
+      "empty_correct": true
+    },
+    {
+      "case_id": "irr-06",
+      "category": "irrelevant",
+      "split": "dev",
+      "area": "irrelevant",
+      "elapsed_ms": 12.8,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0,
+      "empty_correct": true
+    },
+    {
+      "case_id": "irr-07",
+      "category": "irrelevant",
+      "split": "heldout",
+      "area": "irrelevant",
+      "elapsed_ms": 15.5,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0,
+      "empty_correct": true
+    },
+    {
+      "case_id": "irr-08",
+      "category": "irrelevant",
+      "split": "dev",
+      "area": "irrelevant",
+      "elapsed_ms": 18.8,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0,
+      "empty_correct": true
+    },
+    {
+      "case_id": "irr-09",
+      "category": "irrelevant",
+      "split": "dev",
+      "area": "irrelevant",
+      "elapsed_ms": 21.4,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0,
+      "empty_correct": true
+    },
+    {
+      "case_id": "irr-10",
+      "category": "irrelevant",
+      "split": "heldout",
+      "area": "irrelevant",
+      "elapsed_ms": 20.9,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0,
+      "empty_correct": true
+    },
+    {
+      "case_id": "irr-11",
+      "category": "irrelevant",
+      "split": "dev",
+      "area": "irrelevant",
+      "elapsed_ms": 11.5,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0,
+      "empty_correct": true
+    },
+    {
+      "case_id": "irr-12",
+      "category": "irrelevant",
+      "split": "heldout",
+      "area": "irrelevant",
+      "elapsed_ms": 21.5,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0,
+      "empty_correct": true
+    },
+    {
+      "case_id": "mix-01",
+      "category": "mixed",
+      "split": "dev",
+      "area": "mixed",
+      "elapsed_ms": 55.4,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 0.880975,
+      "coverage": 1.0,
+      "score": 0.9404874999999999,
+      "grades": [
+        3,
+        1,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "mix-02",
+      "category": "mixed",
+      "split": "dev",
+      "area": "mixed",
+      "elapsed_ms": 29.8,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "coverage": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "mix-03",
+      "category": "mixed",
+      "split": "dev",
+      "area": "mixed",
+      "elapsed_ms": 24.2,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "coverage": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "mix-04",
+      "category": "mixed",
+      "split": "heldout",
+      "area": "mixed",
+      "elapsed_ms": 18.0,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "coverage": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "mix-05",
+      "category": "mixed",
+      "split": "dev",
+      "area": "mixed",
+      "elapsed_ms": 20.2,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "coverage": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "mix-06",
+      "category": "mixed",
+      "split": "dev",
+      "area": "mixed",
+      "elapsed_ms": 33.9,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 0.723022,
+      "coverage": 1.0,
+      "score": 0.861511,
+      "grades": [
+        2,
+        3,
+        2,
+        3,
+        2,
+        3,
+        3,
+        2,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "mix-07",
+      "category": "mixed",
+      "split": "heldout",
+      "area": "mixed",
+      "elapsed_ms": 28.4,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "coverage": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "mix-08",
+      "category": "mixed",
+      "split": "dev",
+      "area": "mixed",
+      "elapsed_ms": 18.2,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "coverage": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "mix-09",
+      "category": "mixed",
+      "split": "heldout",
+      "area": "mixed",
+      "elapsed_ms": 47.9,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "coverage": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "mix-10",
+      "category": "mixed",
+      "split": "dev",
+      "area": "mixed",
+      "elapsed_ms": 15.7,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "coverage": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "mix-11",
+      "category": "mixed",
+      "split": "dev",
+      "area": "mixed",
+      "elapsed_ms": 20.3,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "coverage": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "mix-12",
+      "category": "mixed",
+      "split": "heldout",
+      "area": "mixed",
+      "elapsed_ms": 16.1,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "coverage": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "rec-01",
+      "category": "complement",
+      "split": "dev",
+      "area": "complement",
+      "elapsed_ms": 51.6,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "recommendation_score": 0.0,
+      "score": 0.5,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "rec-02",
+      "category": "complement",
+      "split": "dev",
+      "area": "complement",
+      "elapsed_ms": 35.0,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "recommendation_score": 0.0,
+      "score": 0.5,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "rec-03",
+      "category": "complement",
+      "split": "heldout",
+      "area": "complement",
+      "elapsed_ms": 16.4,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "recommendation_score": 0.0,
+      "score": 0.5,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "rec-04",
+      "category": "complement",
+      "split": "dev",
+      "area": "complement",
+      "elapsed_ms": 50.1,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "recommendation_score": 0.0,
+      "score": 0.5,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "rec-05",
+      "category": "complement",
+      "split": "dev",
+      "area": "complement",
+      "elapsed_ms": 14.7,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "recommendation_score": 0.0,
+      "score": 0.5,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "rec-06",
+      "category": "complement",
+      "split": "heldout",
+      "area": "complement",
+      "elapsed_ms": 16.5,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "recommendation_score": 0.0,
+      "score": 0.5,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "rec-07",
+      "category": "complement",
+      "split": "dev",
+      "area": "complement",
+      "elapsed_ms": 24.3,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "recommendation_score": 0.0,
+      "score": 0.5,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "rec-08",
+      "category": "complement",
+      "split": "heldout",
+      "area": "complement",
+      "elapsed_ms": 23.2,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "recommendation_score": 0.0,
+      "score": 0.5,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "rec-09",
+      "category": "complement",
+      "split": "dev",
+      "area": "complement",
+      "elapsed_ms": 31.5,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 0.428571,
+      "recommendation_score": 0.0,
+      "score": 0.2142855,
+      "grades": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ]
+    },
+    {
+      "case_id": "rec-10",
+      "category": "complement",
+      "split": "dev",
+      "area": "complement",
+      "elapsed_ms": 32.3,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 1.0,
+      "recommendation_score": 1.0,
+      "score": 1.0,
+      "grades": [
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "case_id": "fs-01",
+      "category": "filter_sort",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 14.9,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "fs-02",
+      "category": "filter_sort",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 13.5,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "fs-03",
+      "category": "filter_sort",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 15.5,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "fs-04",
+      "category": "filter_sort",
+      "split": "heldout",
+      "area": "validity",
+      "elapsed_ms": 11.8,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "fs-05",
+      "category": "filter_sort",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 12.2,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "fs-06",
+      "category": "filter_sort",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 12.7,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "fs-07",
+      "category": "filter_sort",
+      "split": "heldout",
+      "area": "validity",
+      "elapsed_ms": 12.3,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "fs-08",
+      "category": "filter_sort",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 11.6,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "fs-09",
+      "category": "filter_sort",
+      "split": "heldout",
+      "area": "validity",
+      "elapsed_ms": 12.1,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "fs-10",
+      "category": "filter_sort",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 11.3,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "pag-01",
+      "category": "pagination",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 11.7,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "pag-02",
+      "category": "pagination",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 11.5,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "pag-03",
+      "category": "pagination",
+      "split": "heldout",
+      "area": "validity",
+      "elapsed_ms": 17.2,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "pag-04",
+      "category": "pagination",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 11.5,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "pag-05",
+      "category": "pagination",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 34.2,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "ndcg": 0.029262,
+      "score": 1.0,
+      "grades": [
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "case_id": "pag-06",
+      "category": "pagination",
+      "split": "heldout",
+      "area": "validity",
+      "elapsed_ms": 13.6,
+      "checks": {
+        "structural": true,
+        "constraints": true,
+        "sorting_pagination": true,
+        "presence": true
+      },
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "inv-01",
+      "category": "invalid",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 5.9,
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "inv-02",
+      "category": "invalid",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 5.7,
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "inv-03",
+      "category": "invalid",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 5.9,
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "inv-04",
+      "category": "invalid",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 5.9,
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "inv-05",
+      "category": "invalid",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 5.8,
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "inv-06",
+      "category": "invalid",
+      "split": "heldout",
+      "area": "validity",
+      "elapsed_ms": 5.8,
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "inv-07",
+      "category": "invalid",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 6.0,
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "inv-08",
+      "category": "invalid",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 6.1,
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "inv-09",
+      "category": "invalid",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 5.7,
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "inv-10",
+      "category": "invalid",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 6.0,
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "inv-11",
+      "category": "invalid",
+      "split": "heldout",
+      "area": "validity",
+      "elapsed_ms": 6.3,
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "inv-12",
+      "category": "invalid",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 5.7,
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "inv-13",
+      "category": "invalid",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 5.7,
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "inv-14",
+      "category": "invalid",
+      "split": "heldout",
+      "area": "validity",
+      "elapsed_ms": 5.7,
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "inv-15",
+      "category": "invalid",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 6.0,
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "inv-16",
+      "category": "invalid",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 5.8,
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "inv-17",
+      "category": "invalid",
+      "split": "heldout",
+      "area": "validity",
+      "elapsed_ms": 5.7,
+      "validity": 1.0,
+      "score": 1.0
+    },
+    {
+      "case_id": "inv-18",
+      "category": "invalid",
+      "split": "dev",
+      "area": "validity",
+      "elapsed_ms": 5.7,
+      "validity": 1.0,
+      "score": 1.0
+    }
+  ]
+}

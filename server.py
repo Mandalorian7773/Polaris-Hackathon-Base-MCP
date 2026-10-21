@@ -60,8 +60,11 @@ async def health(request):
     return JSONResponse({'status': 'ok', 'products': len(catalog.products)})
 
 
+# The brief requires HTTP 405 for unsupported standalone GET streams. Letting the
+# SDK handle GET opens a long-lived SSE stream instead, so GET is left unrouted and
+# Starlette answers it with 405 and an Allow header.
 app = Starlette(lifespan=lifespan, routes=[
-    Route('/mcp', endpoint=MCPApplication(), methods=['POST', 'GET', 'DELETE']),
+    Route('/mcp', endpoint=MCPApplication(), methods=['POST', 'DELETE']),
     Route('/healthz', endpoint=health),
 ])
 

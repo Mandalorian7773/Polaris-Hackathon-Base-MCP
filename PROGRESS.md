@@ -1212,3 +1212,74 @@ The duplicate text index was retained. It is no longer dead startup/RSS cost: th
 accepted production path uses it for guarded recall. Removing either index would
 require replacing behavior exercised by the new full-catalog tests, so no
 behavior-preserving removal was available in this phase.
+
+---
+
+## Controlled ablation — description-head concepts (2026-10-21)
+
+Goal: recover products whose catalog `product_type` is a merchandising bucket but
+whose description unambiguously names a different garment, without weakening the
+guarded planner fallback, hard constraints, abstention, sorting, or recommendations.
+
+### Promoted design
+
+- Build catalog-grounded product-type concept postings once at startup.
+- Evidence is accepted only when an unambiguous canonical type or reviewed
+  single-type synonym is the final phrase of the first description clause. This
+  makes `Dress in soft sweatshirt fabric` a Dress concept while `Trainer socks`
+  remains Socks rather than Sneakers.
+- Description concepts are recall-only tail candidates for relevance sorting.
+  Explicit catalog `product_type` rows always rank first.
+- Explicit API `product_type` filters keep precedence. Field sorts and
+  recommendations retain their previous strict candidate sets.
+- Concept-only scores cannot suppress the guarded BM25F fallback. At least one
+  strict catalog type/category must still score for the precision lane to win.
+
+Across the frozen catalog, the strict index found 79,915 high-confidence
+description-head concepts, including 21,300 rows whose inferred type differed from
+the catalog `product_type`. This is a catalog summary, not an edited artifact.
+
+### Rejected first candidate
+
+The first candidate treated inferred and explicit types equally and enabled inferred
+types in recommendations. It regressed the original 56-case ranking
+0.9644 → 0.9554, recommendations 0.9781 → 0.9320, and the 104-case functional score
+87.845 → 86.899. A second candidate still let concept-only evidence suppress the
+guarded fallback for `a winter coat with gloves and a scarf to match`. Both versions
+were rejected. The promoted version adds the tail ordering, strict field-sort and
+recommendation lanes, and the strict-taxonomy fallback guard described above.
+
+### Before / after
+
+| Metric | `e90f116` before | Promoted concept recovery |
+| --- | ---: | ---: |
+| Unit tests | 240/240 | **247/247** |
+| Original 56 ranking | 0.964386 | **0.969474** |
+| Original 56 held out | 0.909808 | **0.918133** |
+| Original 56 unusual / irrelevant / mixed | 0.946840 / 1.000 / 1.000 | **unchanged** |
+| Original 56 recommendations / contract / invalid | 0.978132 / 1.000 / 1.000 | **unchanged** |
+| Original 56 p50 / p95 | 6.187 / 16.799 ms | 7.072 / 21.441 ms |
+| Original 56 startup / peak RSS | 5.065 s / 987.84 MB | 5.902 s / 1007.88 MB |
+| 104-case functional points | 87.845 / 95 | **87.845 / 95** |
+| 104-case held out | 88.256 / 95 | **88.256 / 95** |
+| 104-case failures / false-positive rate | 0 / 0.000 | **0 / 0.000** |
+| Research development score / FPR | 0.617948 / 0.000 | **unchanged** |
+| Research held-out score / FPR | 0.684211 / 0.250 | **unchanged** |
+| 300-call correctness / p95 | 1.000 / 8.457 ms | **1.000 / 7.297 ms** |
+
+The measurable quality gain is the held-out `shoulder bag` case: two strict
+`Shoulder bag` rows remain first and description-grounded `Bag` rows fill the
+otherwise empty tail, moving nDCG@10 from 0.358954 to 0.450532. No fixed-suite case
+regressed in the promoted version. Startup/RSS movements are single-run measurements;
+the added postings themselves are compact integer arrays.
+
+### Deferred constraint-parser ablation
+
+Natural-language negation and prose minimum-rating constraints were not implemented.
+None of the fixed 56-case, 104-case, or research suites contains such a query.
+Authoring cases after seeing the proposed parser would not supply independent
+held-out evidence, and promoting an unmeasured hard-constraint parser would violate
+this pass's gate. Revisit only with independently authored, sealed cases.
+
+No dense vectors, model runtime, NumPy dependency, schema/protocol change, catalog
+change, deployment, or submission was introduced.

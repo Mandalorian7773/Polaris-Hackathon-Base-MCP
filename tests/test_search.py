@@ -752,6 +752,62 @@ class IntegratedTaxonomyNormalizationTests(unittest.TestCase):
             self.ids('outfit for an interview'), ['202', '208', '203'])
 
 
+class DescriptionHeadConceptTests(unittest.TestCase):
+    """Description concepts recover real garments without matching modifiers."""
+
+    def setUp(self):
+        self.catalog = Catalog([
+            product('301', 1000, 4, 2, name='Tailored style',
+                    description='Short dress in woven fabric.',
+                    product_type='Dress', category='Garment Full body'),
+            product('302', 1200, 4, 2, name='Sweatshirt style',
+                    description='Dress in soft sweatshirt fabric.',
+                    product_type='Sweater'),
+            product('303', 300, 4, 2, name='Sport socks',
+                    description='Trainer socks in a cotton blend.',
+                    product_type='Socks', category='Socks & Tights'),
+            product('304', 900, 4, 2, name='Printed knit',
+                    description='Sweater with a dress motif.',
+                    product_type='Sweater'),
+        ])
+        # Production chooses this path by catalog size; force it for the small,
+        # independently understandable fixture.
+        self.catalog.use_precision_ranking = True
+
+    def ids(self, query, **arguments):
+        return [item['id'] for item in self.catalog.search(
+            {'query': query, **arguments})['results']]
+
+    def test_mismatched_product_type_is_recovered_from_description_head(self):
+        self.assertEqual(self.ids('dress'), ['301', '302'])
+        recovered = self.catalog.position_of['302']
+        self.assertIn(
+            recovered, self.catalog.precision_concept_postings['Dress'])
+
+    def test_head_final_noun_prevents_modifier_false_positive(self):
+        socks = self.catalog.position_of['303']
+        self.assertNotIn(
+            socks, self.catalog.precision_concept_postings.get('Sneakers', ()))
+        self.assertEqual(self.ids('sneakers'), [])
+        self.assertNotIn('304', self.ids('dress'))
+
+    def test_explicit_product_type_filter_keeps_precedence(self):
+        self.assertEqual(
+            self.ids('dress', filters={'product_type': 'Dress'}), ['301'])
+        self.assertIn(
+            '302', self.ids('dress', filters={'product_type': 'Sweater'}))
+
+    def test_field_sort_keeps_the_strict_relevance_set(self):
+        self.assertEqual(
+            self.ids('dress', sort_by='price', sort_order='asc'), ['301'])
+
+    def test_concept_only_scores_do_not_suppress_guarded_fallback(self):
+        intent = self.catalog._parse_precision_intent('dress')
+        recovered = self.catalog.position_of['302']
+        self.assertFalse(self.catalog._precision_has_strict_taxonomy_score(
+            intent, {recovered: 1.0}))
+
+
 class FullCatalogProductionPathTests(unittest.TestCase):
     """Regressions must exercise the size-selected production retrieval lane."""
 
@@ -838,6 +894,32 @@ class FullCatalogProductionPathTests(unittest.TestCase):
             }),
             {'results': [], 'recommendations': []},
         )
+
+    def test_description_head_concepts_reach_the_selected_production_path(self):
+        strict = set(
+            self.catalog.index.postings['product_type'].get('dress', ()))
+        recovered = set(
+            self.catalog.precision_concept_postings['Dress']) - strict
+        self.assertTrue(recovered)
+
+        intent = self.catalog._parse_precision_intent('dress')
+        allowed, ignored = self.catalog._precision_intent_allowed(
+            intent, set(self.catalog.all_indices), {})
+        scores = self.catalog._precision_intent_scores(
+            intent, set(self.catalog.all_indices), {})
+        self.assertFalse(ignored)
+        self.assertTrue(recovered.issubset(allowed))
+        self.assertTrue(recovered.intersection(scores))
+
+    def test_concept_only_match_keeps_the_guarded_planner_fallback(self):
+        output = self.catalog.search({
+            'query': 'a winter coat with gloves and a scarf to match',
+            'include_recommendations': True,
+        })
+        self.assertTrue(output['results'])
+        self.assertTrue(all(
+            product['product_type'] == 'Coat'
+            for product in self.products_for(output)))
 
 
 if __name__ == '__main__': unittest.main()

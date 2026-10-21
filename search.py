@@ -86,6 +86,11 @@ PRECISION_MIN_AMOUNT_RE = re.compile(
     r'(?:inr|rs\.?|₹)?\s*([\d,]+(?:\.\d+)?)\s*(k)?',
     re.IGNORECASE,
 )
+DESCRIPTION_HEAD_SPLIT_RE = re.compile(
+    r'\.|,|\s+in\s+|\s+with\s+|\s+made\s+|\s+from\s+|\s+that\s+|'
+    r'\s+and\s+a\s+|\s+containing\s+',
+    re.IGNORECASE,
+)
 PRECISION_COMPLEMENT_RE = re.compile(
     r'\b(?:with\s+(?:a\s+|an\s+)?'
     r'(?:matching|complementary|coordinating|accompanying)\s+|'
@@ -617,6 +622,58 @@ class Catalog:
             'warm': ('Coat', 'Jacket', 'Sweater', 'Cardigan', 'Hoodie'),
             'workout': ('T-shirt', 'Shorts', 'Leggings/Tights', 'Sneakers'),
         }
+        self._build_description_concept_postings(product_types)
+
+    def _build_description_concept_postings(
+            self, product_types: Sequence[str]) -> None:
+        """Index high-confidence garment nouns at the head of descriptions.
+
+        ``product_type`` is occasionally a merchandising bucket rather than the
+        garment the description actually names.  A row typed ``Sweater`` can, for
+        example, begin with ``Dress in soft sweatshirt fabric``.  Recover only an
+        unambiguous, catalog-grounded product type whose alias is the final phrase
+        of the first description clause.  Requiring head-final evidence prevents
+        modifier phrases such as ``trainer socks`` from becoming Sneakers.
+        """
+        known_types = set(product_types)
+        alias_targets: dict[tuple[str, ...], str | None] = {}
+
+        def register(alias: str, target: str) -> None:
+            if target not in known_types:
+                return
+            terms = tokens(alias)
+            if not terms:
+                return
+            existing = alias_targets.get(terms)
+            if terms in alias_targets and existing != target:
+                alias_targets[terms] = None
+            else:
+                alias_targets[terms] = target
+
+        for product_type in product_types:
+            register(product_type, product_type)
+        for alias, mapping in self.lexicon.synonyms.items():
+            targets = mapping.get('product_type', [])
+            # Extra facets make the alias a compound constraint rather than a
+            # high-confidence name for one garment type (for example jeans).
+            if len(targets) == 1 and set(mapping) == {'product_type'}:
+                register(alias, targets[0])
+
+        matchers = sorted(
+            ((terms, target) for terms, target in alias_targets.items()
+             if target is not None),
+            key=lambda item: (-len(item[0]), item[0], item[1]),
+        )
+        postings: dict[str, array[int]] = defaultdict(lambda: array('i'))
+        for position, product in enumerate(self.products):
+            clause = DESCRIPTION_HEAD_SPLIT_RE.split(
+                str(product.get('description') or ''), maxsplit=1)[0]
+            head = tokens(clause)[:6]
+            for terms, target in matchers:
+                if len(terms) <= len(head) and head[-len(terms):] == terms:
+                    postings[target].append(position)
+                    break
+        self.precision_concept_postings = dict(postings)
 
     @staticmethod
     def _contains_precision_phrase(text: str, phrase: str) -> bool:
@@ -895,7 +952,8 @@ class Catalog:
         explicit_scores: dict[int, float] | None = None
         if precision_plan.complement is not None:
             explicit_scores = self._precision_intent_scores(
-                precision_plan.complement, set(self.all_indices), {})
+                precision_plan.complement, set(self.all_indices), {},
+                include_concepts=False)
         elif shopping_plan.accessories:
             explicit_scores = {}
             for intent in shopping_plan.accessories:
@@ -1115,7 +1173,8 @@ class Catalog:
 
     def _precision_intent_allowed(
             self, intent: PrecisionIntent, allowed: set[int],
-            explicit_filters: dict[str, Any]) -> tuple[set[int], set[str]]:
+            explicit_filters: dict[str, Any],
+            include_concepts: bool = True) -> tuple[set[int], set[str]]:
         result = set(allowed)
         ignored: set[str] = set()
         constraints = (
@@ -1129,6 +1188,11 @@ class Catalog:
             if not values:
                 continue
             matching = self._precision_facet_union(field_name, values)
+            if (include_concepts and field_name == 'product_type' and
+                    field_name not in explicit_filters):
+                for value in values:
+                    matching.update(
+                        self.precision_concept_postings.get(value, ()))
             narrowed = result.intersection(matching)
             # An explicit value overrides prose for the *same* facet. A category
             # filter does not erase a product-type requirement (or vice versa):
@@ -1228,9 +1292,10 @@ class Catalog:
 
     def _precision_intent_scores(
             self, intent: PrecisionIntent, allowed: set[int],
-            explicit_filters: dict[str, Any]) -> dict[int, float]:
+            explicit_filters: dict[str, Any],
+            include_concepts: bool = True) -> dict[int, float]:
         intent_allowed, ignored = self._precision_intent_allowed(
-            intent, allowed, explicit_filters)
+            intent, allowed, explicit_filters, include_concepts)
         preferred: set[int] = set()
         if intent.soft_types:
             preferred = self._precision_facet_union(
@@ -1252,6 +1317,23 @@ class Catalog:
                 type_rank = intent.soft_types.index(product_type)
                 scores[position] = scores.get(position, 0.0) + max(
                     4.0, 12.0 - type_rank)
+        if (include_concepts and intent.product_types and
+                'product_type' not in ignored):
+            strict = self._precision_facet_union(
+                'product_type', intent.product_types).intersection(scores)
+            recovered = set(scores).difference(strict)
+            # A description-derived type is useful recall evidence, but the
+            # catalog's explicit product_type remains the stronger signal. Keep
+            # every recovered row behind every strict row instead of allowing a
+            # verbose description to outrank an exact type.
+            if strict and recovered:
+                strict_floor = min(scores[position] for position in strict)
+                recovered_ceiling = max(
+                    scores[position] for position in recovered)
+                if recovered_ceiling >= strict_floor:
+                    factor = (strict_floor * 0.99) / recovered_ceiling
+                    for position in recovered:
+                        scores[position] *= factor
         return scores
 
     def _precision_relevance_order(
@@ -1290,9 +1372,22 @@ class Catalog:
         allowed = set(self._candidates(request.filters))
         return [
             self._precision_intent_scores(
-                intent, allowed, request.filters)
+                intent, allowed, request.filters,
+                include_concepts=request.sort_by == 'relevance')
             for intent in plan.primary
         ]
+
+    def _precision_has_strict_taxonomy_score(
+            self, intent: PrecisionIntent,
+            scores: dict[int, float]) -> bool:
+        """Did an explicit catalog type/category contribute a scored candidate?"""
+        for field_name, values in (
+                ('product_type', intent.product_types),
+                ('category', intent.categories)):
+            if values and self._precision_facet_union(
+                    field_name, values).intersection(scores):
+                return True
+        return False
 
     def _precision_relevance_page(
             self, request: Request, plan: PrecisionPlan,
@@ -1472,9 +1567,10 @@ class Catalog:
                 any(not scores for scores in score_sets) or
                 any(
                     self.planner.plan(item.text).has_anchor and
-                    not (intent.product_types or intent.categories)
-                    for item, intent in zip(plan.primary,
-                                            precision_plan.primary)
+                    not self._precision_has_strict_taxonomy_score(
+                        intent, scores)
+                    for item, intent, scores in zip(
+                        plan.primary, precision_plan.primary, score_sets)
                 )
             )
             if (needs_bm25f and not request.filters and

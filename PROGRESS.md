@@ -126,3 +126,132 @@ Correct response rate: **1.0000** in both runs.
 .venv/bin/python scripts/catalog_stats.py
 .venv/bin/python scripts/bench.py --manage --smoke --out analysis/bench_phase1.json
 ```
+
+---
+
+## Phase 2 — Contract correctness and the exact filter index (2026-10-21)
+
+Goal: make the contract impossible to get wrong by accident, and make exact
+filter-only pages cheap. `search.py` was restructured into explicit stages; the
+published schemas, tool name, protocol revision, and output shape are unchanged.
+
+### Architecture
+
+`search.py` now runs one request through named stages:
+
+```
+parse_request   validate against the schema, then apply defaults ourselves
+plan_query      QueryPlan (terms today; real intent planning in phase 5)
+_acceptor       compile explicit filters into one position predicate
+_candidates     selective posting/range source, or an ordered walk
+_order_key      field sort keys with ID-ascending tie-break, nulls last
+_recheck        re-verify the page against the original catalog records
+recommend       still a stub, returns []
+```
+
+`CatalogIndex` is built once at load: folded facet columns, numeric columns,
+position postings per facet value, eight presorted orders (four fields × two
+directions), ascending value arrays for `bisect`, and per-product term sets.
+
+Candidate generation takes one of two paths and both must agree:
+
+- **Selective source** — the smallest superset derivable from a single filter
+  (a facet posting, or a `bisect` range over the price / rating / review-count
+  order). Taken when it covers at most `1/MATERIALIZE_RATIO` (1/8) of the catalog.
+- **Ordered walk** — walk the presorted order, test the predicate, stop as soon as
+  `offset + limit` rows are collected.
+
+Unfiltered requests skip both and slice the presorted order directly.
+
+### Two real bugs found and fixed
+
+1. **`GET /mcp` hung open an SSE stream** instead of returning 405 as the brief
+   requires. `server.py` now routes only `POST` and `DELETE`, so Starlette answers
+   `GET` with 405 and an `Allow` header. Measured: `GET` → 405, `DELETE` → 405,
+   a plain REST `POST` → 406, `/healthz` → 200.
+2. **`{"limit": 10.0}` crashed with a `TypeError`.** JSON Schema 2020-12 counts a
+   float with a zero fractional part as an integer, so `10.0` is a *valid* argument;
+   it reached a list slice and raised. A crash on a valid call would have cost a
+   whole validity case. `parse_request` now coerces `offset`, `limit`, and
+   `min_review_count` to `int`, while `10.5` stays invalid.
+
+### Tests
+
+`tests/test_search.py`: the five original fixtures are untouched; 45 cases added
+across validation (wrong types, nulls, bool-as-int, NaN/Inf, out-of-range, boundary
+values, `query` > 1000 chars, unknown vs blank facet values, unknown properties),
+filter semantics (trimming, case folding, inclusive bounds, null ratings vs
+`min_rating`, AND combination, explicit filter beating conflicting query wording),
+ordering (empty-query ID fallback, ID-ascending tie-breaks in both directions, nulls
+last, field sorting after relevance selection, relevance `asc` reversal), pagination
+(repeat stability, prefix consistency, no duplicates or gaps, deep offsets, short
+pages), contract invariants (known string IDs, leading zeros, both keys always
+present, recommendation invariants), index invariants (postings partition the
+catalog, `matches` agrees with the compiled acceptor at every position), and query
+planning (whitespace-only, Unicode).
+
+`tests/test_protocol.py` (new): starts a real `server.py` process against a 60-row
+fixture catalog via `CATALOG_PATH` and checks protocol revision `2025-11-25`, exactly
+one advertised tool with both exact schemas, `structuredContent` equal to the text
+block, empty success for no matches, **17 invalid calls all returning `isError`**,
+unknown tool name, over-the-wire pagination stability and prefix consistency,
+recommendations disabled by default, and the HTTP method contract.
+
+| Suite | Result |
+| --- | --- |
+| `python -m unittest discover -s tests` | **61 tests OK in 2.85 s** |
+| Original 5 starter cases | pass, unchanged |
+| `smoke_test.py` | **PASS** (0.57 s), unchanged |
+| Differential check vs brute-force reference, real catalog | **1,630 combos, 0 mismatches** |
+| Differential check vs brute-force reference, fixture, both paths forced | **1,800 combos, 0 mismatches** |
+
+The real-catalog differential run covered every filter set × sort × query × page
+combination including the `Dog Wear` / `Dog wear` case collision, unknown facet
+values, `min_price = max_price`, deep offsets, and `limit = 100`.
+
+### Measured: latency
+
+| Workload | Phase 1 p50 | Phase 2 p50 | Phase 1 p95 | Phase 2 p95 |
+| --- | --- | --- | --- | --- |
+| Concurrency 1 | 58.7 ms | **11.5 ms** | 86.7 ms | **16.0 ms** |
+| Concurrency 5 | 309.3 ms | **41.5 ms** | 557.5 ms | **57.6 ms** |
+| Pooled (200 calls) | 113.4 ms | **17.6 ms** | 491.4 ms | **52.0 ms** |
+
+0 errors, correct response rate 1.0000, 50/50 pool pages stable on repeat.
+
+### Measured: in-process search cost (median of 9)
+
+| Request | Phase 1 | Phase 2 |
+| --- | --- | --- |
+| Empty query, no filters | 40.9 ms | **0.01 ms** |
+| Empty query, `color=Black` | 35.4 ms | **0.04 ms** |
+| Empty query, `sort_by=price asc` | 70.1 ms | **0.02 ms** |
+| Empty query, `min_rating=4, min_review_count=3` | 41.0 ms | **0.05 ms** |
+| Empty query, `offset=9990` | 41.4 ms | **0.02 ms** |
+| Empty query, 3 facets + 3 numeric filters | — | 0.87 ms |
+| `query="cotton top"` | 148.4 ms | 43.9 ms |
+| `query="black dress"` | 137.8 ms | 38.6 ms |
+
+The empty-query path is now ~1,000× cheaper and the remaining ~11 ms p50 over MCP is
+almost entirely SDK, uvicorn, and JSON transport overhead — the in-process search is
+0.01–0.9 ms. Text queries still scan every filter-passing product because `relevance`
+is unchanged; phase 4 replaces that with an inverted index.
+
+### Startup and memory
+
+| Metric | Phase 1 | Phase 2 |
+| --- | --- | --- |
+| Startup to healthy `/healthz` | 2.63 s | 3.23 s |
+| RSS after startup | 777 MB | 803 MB |
+| Peak RSS | 792 MB | 805 MB |
+
++0.6 s and +26 MB buys the index: 8 presorted orders, 6 facet posting maps, numeric
+columns, and ascending value arrays.
+
+### Still open after phase 2
+
+- `recommend` returns `[]` — 0 of the 10 recommendation points.
+- Relevance is still strict lexical AND: no synonyms, typos, prose budgets,
+  mixed-choice splitting, or calibrated abstention.
+- Text-query latency (~40 ms in process) is not in the scored performance pool but
+  sets the floor for richer ranking.

@@ -2,18 +2,18 @@
   "baseline": {
     "system": "baseline",
     "case_count": 56,
-    "startup_ms": 1721.01,
-    "peak_rss_mb": 1036.47,
-    "p50_ms": 97.132,
-    "p95_ms": 152.86,
+    "startup_ms": 1843.56,
+    "peak_rss_mb": 874.44,
+    "p50_ms": 104.928,
+    "p95_ms": 142.446,
     "categories": {
-      "recommendation": 0.0,
-      "irrelevant": 1.0,
-      "ranking": 0.6422045577244638,
       "unusual": 0.0,
+      "irrelevant": 1.0,
+      "mixed": 0.26420811526940763,
+      "ranking": 0.6422045577244638,
       "contract": 1.0,
       "invalid": 1.0,
-      "mixed": 0.26420811526940763
+      "recommendation": 0.0
     },
     "splits": {
       "development": 0.5770378080144053,
@@ -1030,18 +1030,18 @@
   "current": {
     "system": "current",
     "case_count": 56,
-    "startup_ms": 2385.53,
-    "peak_rss_mb": 817.81,
-    "p50_ms": 4.796,
-    "p95_ms": 14.457,
+    "startup_ms": 2648.67,
+    "peak_rss_mb": 729.72,
+    "p50_ms": 5.389,
+    "p95_ms": 18.153,
     "categories": {
-      "invalid": 1.0,
-      "ranking": 0.94015237043677,
+      "irrelevant": 1.0,
       "contract": 1.0,
       "recommendation": 0.9781324870812763,
       "mixed": 1.0,
       "unusual": 0.9421072158373573,
-      "irrelevant": 1.0
+      "invalid": 1.0,
+      "ranking": 0.94015237043677
     },
     "splits": {
       "development": 0.9849002118121087,
